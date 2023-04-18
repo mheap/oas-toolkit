@@ -1,0 +1,26 @@
+{
+  "name": "openapi-toolkit",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "bin": {
+    "openapi-toolkit": "./cli/bin.js"
+  },
+  "scripts": {
+    "test": "jest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "jest": "^29.5.0"
+  },
+  "dependencies": {
+    "@apidevtools/json-schema-ref-parser": "^10.1.0",
+    "debug": "^4.3.4",
+    "js-yaml": "^4.1.0",
+    "jsonpath-plus": "^7.2.0",
+    "mergician": "^1.1.0",
+    "yargs": "^17.7.1"
+  }
+}
