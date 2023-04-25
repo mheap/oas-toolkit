@@ -1,8 +1,8 @@
 const mergician = require("mergician");
 
 function merge(objects, options) {
-  ensureNoComponentColissions(objects);
-  ensureNoPathColissions(objects);
+  ensureNoComponentColissions(objects, options);
+  ensureNoPathColissions(objects, options);
 
   // Do the merge
   let combinedSpec = {};
@@ -43,7 +43,8 @@ function mergeSection(spec, merger, objects, section) {
   );
 }
 
-function ensureNoComponentColissions(objects) {
+function ensureNoComponentColissions(objects, options) {
+  options = options || {};
   const componentList = {};
   // Fetch the first two levels of components
   for (const object of objects) {
@@ -59,8 +60,20 @@ function ensureNoComponentColissions(objects) {
   }
 
   for (let component in componentList) {
+    if (options.ignorePrefix) {
+      if (typeof options.ignorePrefix == "string") {
+        options.ignorePrefix = [options.ignorePrefix];
+      }
+      for (let prefix of options.ignorePrefix) {
+        if (component.startsWith(prefix)) {
+          delete componentList[component];
+        }
+      }
+    }
+
+    // Check if there are > 2
     const value = componentList[component];
-    if (value.length > 1) {
+    if (value && value.length > 1) {
       throw new Error(
         `Duplicate component detected: ${component} (${value.join(", ")})`
       );

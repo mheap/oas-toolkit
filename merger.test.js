@@ -29,6 +29,18 @@ describe("#ensureNoComponentColissions", () => {
     ).toBe(undefined);
   });
 
+  it("does not throw when a conflicting schema is in the ignore list", () => {
+    expect(
+      ensureNoComponentColissions(
+        [
+          { info: { title: "One" }, components: { schemas: { FooSchema } } },
+          { info: { title: "Two" }, components: { schemas: { FooSchema } } },
+        ],
+        { ignorePrefix: ["components.schemas"] }
+      )
+    ).toBe(undefined);
+  });
+
   it("throws when two components have the same name", () => {
     expect(() => {
       ensureNoComponentColissions([
@@ -140,7 +152,7 @@ describe("uses the last provided value for:", () => {
               description: "Overwritten value",
             },
           ],
-        }
+        },
       ])
     ).toEqual({
       servers: [
@@ -155,7 +167,7 @@ describe("concatenates values for:", () => {
     expect(
       merger([
         { tags: [{ name: "One", description: "Description one" }] },
-        { tags: [{ name: "Two", description: "Description two" }] }
+        { tags: [{ name: "Two", description: "Description two" }] },
       ])
     ).toEqual({
       tags: [
@@ -175,7 +187,7 @@ describe("concatenates values for:", () => {
         {
           info: { title: "Two" },
           paths: { "/users": { post: { operationId: "create-user" } } },
-        }
+        },
       ])
     ).toMatchObject({
       paths: {
@@ -201,7 +213,7 @@ describe("concatenates values for:", () => {
               },
             },
           ],
-        }
+        },
       ])
     ).toEqual({
       security: [
