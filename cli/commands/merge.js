@@ -15,7 +15,7 @@ module.exports = function ({ argv }) {
       oas.push(yaml.load(fs.readFileSync(f)));
     }
 
-    const combined = merger.apply(null, oas);
+    const combined = merger(oas, argv);
     console.log(yaml.dump(combined));
   } catch (e) {
     console.error(`ERROR: ${e.message}`);

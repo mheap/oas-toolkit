@@ -29,6 +29,18 @@ describe("#ensureNoComponentColissions", () => {
     ).toBe(undefined);
   });
 
+  it("does not throw when a conflicting schema is in the ignore list", () => {
+    expect(
+      ensureNoComponentColissions(
+        [
+          { info: { title: "One" }, components: { schemas: { FooSchema } } },
+          { info: { title: "Two" }, components: { schemas: { FooSchema } } },
+        ],
+        { ignorePrefix: ["components.schemas"] }
+      )
+    ).toBe(undefined);
+  });
+
   it("throws when two components have the same name", () => {
     expect(() => {
       ensureNoComponentColissions([
@@ -114,20 +126,20 @@ describe("path collisions", () => {
 
 describe("uses the last provided value for:", () => {
   it("openapi", () => {
-    expect(merger({ openapi: "3.0.3" }, { openapi: "3.1.0" })).toEqual({
+    expect(merger([{ openapi: "3.0.3" }, { openapi: "3.1.0" }])).toEqual({
       openapi: "3.1.0",
     });
   });
 
   it("info", () => {
     expect(
-      merger({ info: { title: "OAS One" } }, { info: { title: "OAS Two" } })
+      merger([{ info: { title: "OAS One" } }, { info: { title: "OAS Two" } }])
     ).toEqual({ info: { title: "OAS Two" } });
   });
 
   it("servers", () => {
     expect(
-      merger(
+      merger([
         {
           servers: [
             { url: "https://example.com", description: "My API Description" },
@@ -140,8 +152,8 @@ describe("uses the last provided value for:", () => {
               description: "Overwritten value",
             },
           ],
-        }
-      )
+        },
+      ])
     ).toEqual({
       servers: [
         { url: "https://api.example.com", description: "Overwritten value" },
@@ -153,10 +165,10 @@ describe("uses the last provided value for:", () => {
 describe("concatenates values for:", () => {
   it("tags", () => {
     expect(
-      merger(
+      merger([
         { tags: [{ name: "One", description: "Description one" }] },
-        { tags: [{ name: "Two", description: "Description two" }] }
-      )
+        { tags: [{ name: "Two", description: "Description two" }] },
+      ])
     ).toEqual({
       tags: [
         { name: "One", description: "Description one" },
@@ -167,7 +179,7 @@ describe("concatenates values for:", () => {
 
   it("paths", () => {
     expect(
-      merger(
+      merger([
         {
           info: { title: "One" },
           paths: { "/users": { get: { operationId: "list-users" } } },
@@ -175,8 +187,8 @@ describe("concatenates values for:", () => {
         {
           info: { title: "Two" },
           paths: { "/users": { post: { operationId: "create-user" } } },
-        }
-      )
+        },
+      ])
     ).toMatchObject({
       paths: {
         "/users": {
@@ -189,7 +201,7 @@ describe("concatenates values for:", () => {
 
   it("security", () => {
     expect(
-      merger(
+      merger([
         { security: [{ basicAuth: { type: "http", scheme: "basic" } }] },
         {
           security: [
@@ -201,8 +213,8 @@ describe("concatenates values for:", () => {
               },
             },
           ],
-        }
-      )
+        },
+      ])
     ).toEqual({
       security: [
         { basicAuth: { type: "http", scheme: "basic" } },
