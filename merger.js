@@ -1,6 +1,6 @@
 const mergician = require("mergician");
 
-function merge(...objects) {
+function merge(objects, options) {
   ensureNoComponentColissions(objects);
   ensureNoPathColissions(objects);
 
