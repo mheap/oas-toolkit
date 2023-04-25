@@ -1,10 +1,10 @@
 {
-  "name": "openapi-toolkit",
+  "name": "oas-toolkit",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "bin": {
-    "openapi-toolkit": "./cli/bin.js"
+    "oas-toolkit": "./cli/bin.js"
   },
   "scripts": {
     "test": "jest"

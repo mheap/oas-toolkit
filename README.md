@@ -1,6 +1,6 @@
-## openapi-toolkit
+## oas-toolkit
 
-`openapi-toolkit` is a library and CLI for working with OpenAPI documents.
+`oas-toolkit` is a library and CLI for working with OpenAPI documents.
 
 > The CLI only supports YAML OpenAPI specifications currently
 
@@ -16,7 +16,7 @@ The project provides the following functionality:
 Usage:
 
 ```bash
-openapi-toolkit merge <one> <two> <three> > openapi.yml
+oas-toolkit merge <one> <two> <three> > openapi.yml
 ```
 
 Combining multiple OpenAPI specs has unspecified behaviour. This tool merges using the following algorithm:
