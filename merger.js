@@ -6,6 +6,7 @@ function merge(objects, options) {
   ensureNoComponentColissions(objects, options);
   ensureNoPathColissions(objects, options);
   ensureNoTagColissions(objects, options);
+  ensureNoSecurityColissions(objects, options);
 
   // Do the merge
   let combinedSpec = {};
@@ -25,7 +26,7 @@ function merge(objects, options) {
   }
 
   // Values that should be unique
-  const uniqueSections = ["tags"];
+  const uniqueSections = ["security", "tags"];
   for (let section of uniqueSections) {
     if (combinedSpec[section]) {
       combinedSpec[section] = uniqWith(combinedSpec[section], isEqual);
@@ -143,7 +144,7 @@ function ensureListUniqueness(list, key, objects) {
       }
 
       throw new Error(
-        `Conflicting ${list} detected: ${c.name} (${sources.join(", ")})`
+        `Conflicting ${list} detected: ${c[key]} (${sources.join(", ")})`
       );
     }
   }
@@ -153,8 +154,47 @@ function ensureNoTagColissions(objects) {
   ensureListUniqueness("tags", "name", objects);
 }
 
+function ensureNoSecurityColissions(objects) {
+  let all = [];
+  for (let object of objects) {
+    all = all.concat(object.security || []);
+  }
+
+  all = all.map((s) => Object.entries(s)[0]);
+
+  for (let c of all) {
+    const d = all.filter((t) => {
+      return t[0] == c[0] && !isEqual(c, t);
+    });
+
+    if (d.length > 0) {
+      // Which files does this exist in?
+      const sources = [];
+      for (let object of objects) {
+        if (!object.security) {
+          continue;
+        }
+
+        const match = object.security.filter((t) => {
+          const k = Object.keys(t)[0];
+          return k == c[0];
+        });
+
+        if (match.length) {
+          sources.push(object.info.title);
+        }
+      }
+
+      throw new Error(
+        `Conflicting security detected: ${c[0]} (${sources.join(", ")})`
+      );
+    }
+  }
+}
+
 module.exports = Object.assign(merge, {
   ensureNoComponentColissions,
   ensureNoPathColissions,
   ensureNoTagColissions,
+  ensureNoSecurityColissions,
 });

@@ -2,6 +2,7 @@ const {
   ensureNoComponentColissions,
   ensureNoPathColissions,
   ensureNoTagColissions,
+  ensureNoSecurityColissions,
 } = require("./merger");
 const merger = require("./merger");
 
@@ -59,6 +60,31 @@ describe("#ensureNoTagColissions", () => {
         },
       ]);
     }).toThrow(new Error("Conflicting tags detected: Demo (One, Two)"));
+  });
+});
+
+describe("#ensureNoSecurityColissions", () => {
+  it("does not throw when there are no colissions", () => {
+    expect(
+      ensureNoSecurityColissions([
+        { info: { title: "One" }, security: [{ appKey: [] }] },
+        { info: { title: "Two" }, security: [{ appKey: [] }] },
+      ])
+    ).toBe(undefined);
+  });
+
+  it("throws when there is a field in one security but not in another", () => {
+    expect(() => {
+      ensureNoSecurityColissions([
+        { info: { title: "One" }, security: [{ petstore_auth: [] }] },
+        {
+          info: { title: "Two" },
+          security: [{ petstore_auth: ["pets:write"] }],
+        },
+      ]);
+    }).toThrow(
+      new Error("Conflicting security detected: petstore_auth (One, Two)")
+    );
   });
 });
 
@@ -298,6 +324,14 @@ describe("returns unique items for:", () => {
         { name: "One", description: "Description one" },
         { name: "Two", description: "Description two" },
       ],
+    });
+  });
+
+  it("security", () => {
+    expect(
+      merger([{ security: [{ appKey: [] }] }, { security: [{ appKey: [] }] }])
+    ).toEqual({
+      security: [{ appKey: [] }],
     });
   });
 });
