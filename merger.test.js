@@ -300,15 +300,4 @@ describe("returns unique items for:", () => {
       ],
     });
   });
-
-  it("security", () => {
-    expect(
-      merger([
-        { security: [{ basicAuth: { type: "http", scheme: "basic" } }] },
-        { security: [{ basicAuth: { type: "http", scheme: "basic" } }] },
-      ])
-    ).toEqual({
-      security: [{ basicAuth: { type: "http", scheme: "basic" } }],
-    });
-  });
 });

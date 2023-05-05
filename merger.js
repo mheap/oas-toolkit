@@ -25,7 +25,7 @@ function merge(objects, options) {
   }
 
   // Values that should be unique
-  const uniqueSections = ["security", "tags"];
+  const uniqueSections = ["tags"];
   for (let section of uniqueSections) {
     if (combinedSpec[section]) {
       combinedSpec[section] = uniqWith(combinedSpec[section], isEqual);
