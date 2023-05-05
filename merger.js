@@ -117,35 +117,40 @@ function ensureNoPathColissions(objects) {
   }
 }
 
-function ensureNoTagColissions(objects) {
-  const duplicates = [];
-  let allTags = [];
+function ensureListUniqueness(list, key, objects) {
+  let all = [];
   for (let object of objects) {
-    allTags = allTags.concat(object.tags || []);
+    all = all.concat(object[list] || []);
   }
 
-  for (let currentTag of allTags) {
-    const d = allTags.filter((t) => {
-      return t.name == currentTag.name && !isEqual(currentTag, t);
+  for (let c of all) {
+    const d = all.filter((t) => {
+      return t[key] == c[key] && !isEqual(c, t);
     });
 
     if (d.length > 0) {
       // Which files does this exist in?
       const sources = [];
       for (let object of objects) {
-        if (object.tags) {
-          const match = object.tags.filter((t) => t.name == currentTag.name);
-          if (match.length) {
-            sources.push(object.info.title);
-          }
+        if (!object[list]) {
+          continue;
+        }
+
+        const match = object[list].filter((t) => t[key] == c[key]);
+        if (match.length) {
+          sources.push(object.info.title);
         }
       }
 
       throw new Error(
-        `Conflicting tag detected: ${currentTag.name} (${sources.join(", ")})`
+        `Conflicting ${list} detected: ${c.name} (${sources.join(", ")})`
       );
     }
   }
+}
+
+function ensureNoTagColissions(objects) {
+  ensureListUniqueness("tags", "name", objects);
 }
 
 module.exports = Object.assign(merge, {

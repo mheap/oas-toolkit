@@ -27,7 +27,7 @@ describe("#ensureNoTagColissions", () => {
           tags: [{ name: "Demo", description: "FOO" }],
         },
       ]);
-    }).toThrow(new Error("Conflicting tag detected: Demo (One, Two)"));
+    }).toThrow(new Error("Conflicting tags detected: Demo (One, Two)"));
   });
 
   it("throws when there is a difference in deeply nested fields", () => {
@@ -58,7 +58,7 @@ describe("#ensureNoTagColissions", () => {
           ],
         },
       ]);
-    }).toThrow(new Error("Conflicting tag detected: Demo (One, Two)"));
+    }).toThrow(new Error("Conflicting tags detected: Demo (One, Two)"));
   });
 });
 
