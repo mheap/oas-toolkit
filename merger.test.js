@@ -1,11 +1,66 @@
 const {
   ensureNoComponentColissions,
   ensureNoPathColissions,
+  ensureNoTagColissions,
 } = require("./merger");
 const merger = require("./merger");
 
 const FooSchema = { type: "string" };
 const BarSchema = { type: "boolean" };
+
+describe("#ensureNoTagColissions", () => {
+  it("does not throw when there are no colissions", () => {
+    expect(
+      ensureNoTagColissions([
+        { info: { title: "One" }, tags: [{ name: "Demo" }] },
+        { info: { title: "Two" }, tags: [{ name: "Demo" }] },
+      ])
+    ).toBe(undefined);
+  });
+
+  it("throws when there is a field in one tag but not in another", () => {
+    expect(() => {
+      ensureNoTagColissions([
+        { info: { title: "One" }, tags: [{ name: "Demo" }] },
+        {
+          info: { title: "Two" },
+          tags: [{ name: "Demo", description: "FOO" }],
+        },
+      ]);
+    }).toThrow(new Error("Conflicting tag detected: Demo (One, Two)"));
+  });
+
+  it("throws when there is a difference in deeply nested fields", () => {
+    expect(() => {
+      ensureNoTagColissions([
+        {
+          info: { title: "One" },
+          tags: [
+            {
+              name: "Demo",
+              externalDocs: {
+                description: "Hello",
+                url: "https://example.com",
+              },
+            },
+          ],
+        },
+        {
+          info: { title: "Two" },
+          tags: [
+            {
+              name: "Demo",
+              externalDocs: {
+                description: "Hello",
+                url: "https://another.example.com",
+              },
+            },
+          ],
+        },
+      ]);
+    }).toThrow(new Error("Conflicting tag detected: Demo (One, Two)"));
+  });
+});
 
 describe("#ensureNoComponentColissions", () => {
   it("does not throw when schemas have different prefixes", () => {

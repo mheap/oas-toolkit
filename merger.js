@@ -1,8 +1,10 @@
 const mergician = require("mergician");
+const isEqual = require("lodash.isequal");
 
 function merge(objects, options) {
   ensureNoComponentColissions(objects, options);
   ensureNoPathColissions(objects, options);
+  ensureNoTagColissions(objects, options);
 
   // Do the merge
   let combinedSpec = {};
@@ -106,7 +108,37 @@ function ensureNoPathColissions(objects) {
   }
 }
 
+function ensureNoTagColissions(objects) {
+  const duplicates = [];
+  let allTags = [];
+  for (let object of objects) {
+    allTags = allTags.concat(object.tags || []);
+  }
+
+  for (let currentTag of allTags) {
+    const d = allTags.filter((t) => {
+      return t.name == currentTag.name && !isEqual(currentTag, t);
+    });
+
+    if (d.length > 0) {
+      // Which files does this exist in?
+      const sources = [];
+      for (let object of objects) {
+        if (object.tags){
+          const match = object.tags.filter(t => t.name == currentTag.name);
+          if (match.length){
+            sources.push(object.info.title);
+          }
+        }
+      }
+
+      throw new Error(`Conflicting tag detected: ${currentTag.name} (${sources.join(", ")})`);
+    }
+  }
+}
+
 module.exports = Object.assign(merge, {
   ensureNoComponentColissions,
   ensureNoPathColissions,
+  ensureNoTagColissions,
 });
