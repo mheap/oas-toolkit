@@ -1,5 +1,6 @@
 const mergician = require("mergician");
 const isEqual = require("lodash.isequal");
+const uniqWith = require("lodash.uniqwith");
 
 function merge(objects, options) {
   ensureNoComponentColissions(objects, options);
@@ -21,6 +22,14 @@ function merge(objects, options) {
   const appendSections = ["paths", "components", "security", "tags"];
   for (let section of appendSections) {
     combinedSpec = mergeSection(combinedSpec, appendMerge, objects, section);
+  }
+
+  // Values that should be unique
+  const uniqueSections = ["security", "tags"];
+  for (let section of uniqueSections) {
+    if (combinedSpec[section]) {
+      combinedSpec[section] = uniqWith(combinedSpec[section], isEqual);
+    }
   }
 
   return combinedSpec;
@@ -124,15 +133,17 @@ function ensureNoTagColissions(objects) {
       // Which files does this exist in?
       const sources = [];
       for (let object of objects) {
-        if (object.tags){
-          const match = object.tags.filter(t => t.name == currentTag.name);
-          if (match.length){
+        if (object.tags) {
+          const match = object.tags.filter((t) => t.name == currentTag.name);
+          if (match.length) {
             sources.push(object.info.title);
           }
         }
       }
 
-      throw new Error(`Conflicting tag detected: ${currentTag.name} (${sources.join(", ")})`);
+      throw new Error(
+        `Conflicting tag detected: ${currentTag.name} (${sources.join(", ")})`
+      );
     }
   }
 }

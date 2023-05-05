@@ -284,3 +284,31 @@ describe("concatenates values for:", () => {
     });
   });
 });
+
+describe("returns unique items for:", () => {
+  it("tags", () => {
+    expect(
+      merger([
+        { tags: [{ name: "One", description: "Description one" }] },
+        { tags: [{ name: "Two", description: "Description two" }] },
+        { tags: [{ name: "One", description: "Description one" }] },
+      ])
+    ).toEqual({
+      tags: [
+        { name: "One", description: "Description one" },
+        { name: "Two", description: "Description two" },
+      ],
+    });
+  });
+
+  it("security", () => {
+    expect(
+      merger([
+        { security: [{ basicAuth: { type: "http", scheme: "basic" } }] },
+        { security: [{ basicAuth: { type: "http", scheme: "basic" } }] },
+      ])
+    ).toEqual({
+      security: [{ basicAuth: { type: "http", scheme: "basic" } }],
+    });
+  });
+});
