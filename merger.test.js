@@ -1,11 +1,92 @@
 const {
   ensureNoComponentColissions,
   ensureNoPathColissions,
+  ensureNoTagColissions,
+  ensureNoSecurityColissions,
 } = require("./merger");
 const merger = require("./merger");
 
 const FooSchema = { type: "string" };
 const BarSchema = { type: "boolean" };
+
+describe("#ensureNoTagColissions", () => {
+  it("does not throw when there are no colissions", () => {
+    expect(
+      ensureNoTagColissions([
+        { info: { title: "One" }, tags: [{ name: "Demo" }] },
+        { info: { title: "Two" }, tags: [{ name: "Demo" }] },
+      ])
+    ).toBe(undefined);
+  });
+
+  it("throws when there is a field in one tag but not in another", () => {
+    expect(() => {
+      ensureNoTagColissions([
+        { info: { title: "One" }, tags: [{ name: "Demo" }] },
+        {
+          info: { title: "Two" },
+          tags: [{ name: "Demo", description: "FOO" }],
+        },
+      ]);
+    }).toThrow(new Error("Conflicting tags detected: Demo (One, Two)"));
+  });
+
+  it("throws when there is a difference in deeply nested fields", () => {
+    expect(() => {
+      ensureNoTagColissions([
+        {
+          info: { title: "One" },
+          tags: [
+            {
+              name: "Demo",
+              externalDocs: {
+                description: "Hello",
+                url: "https://example.com",
+              },
+            },
+          ],
+        },
+        {
+          info: { title: "Two" },
+          tags: [
+            {
+              name: "Demo",
+              externalDocs: {
+                description: "Hello",
+                url: "https://another.example.com",
+              },
+            },
+          ],
+        },
+      ]);
+    }).toThrow(new Error("Conflicting tags detected: Demo (One, Two)"));
+  });
+});
+
+describe("#ensureNoSecurityColissions", () => {
+  it("does not throw when there are no colissions", () => {
+    expect(
+      ensureNoSecurityColissions([
+        { info: { title: "One" }, security: [{ appKey: [] }] },
+        { info: { title: "Two" }, security: [{ appKey: [] }] },
+      ])
+    ).toBe(undefined);
+  });
+
+  it("throws when there is a field in one security but not in another", () => {
+    expect(() => {
+      ensureNoSecurityColissions([
+        { info: { title: "One" }, security: [{ petstore_auth: [] }] },
+        {
+          info: { title: "Two" },
+          security: [{ petstore_auth: ["pets:write"] }],
+        },
+      ]);
+    }).toThrow(
+      new Error("Conflicting security detected: petstore_auth (One, Two)")
+    );
+  });
+});
 
 describe("#ensureNoComponentColissions", () => {
   it("does not throw when schemas have different prefixes", () => {
@@ -226,6 +307,31 @@ describe("concatenates values for:", () => {
           },
         },
       ],
+    });
+  });
+});
+
+describe("returns unique items for:", () => {
+  it("tags", () => {
+    expect(
+      merger([
+        { tags: [{ name: "One", description: "Description one" }] },
+        { tags: [{ name: "Two", description: "Description two" }] },
+        { tags: [{ name: "One", description: "Description one" }] },
+      ])
+    ).toEqual({
+      tags: [
+        { name: "One", description: "Description one" },
+        { name: "Two", description: "Description two" },
+      ],
+    });
+  });
+
+  it("security", () => {
+    expect(
+      merger([{ security: [{ appKey: [] }] }, { security: [{ appKey: [] }] }])
+    ).toEqual({
+      security: [{ appKey: [] }],
     });
   });
 });
