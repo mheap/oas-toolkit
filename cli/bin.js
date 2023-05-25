@@ -9,4 +9,9 @@ yargs(hideBin(process.argv))
     "merge the provided OpenAPI files",
     require("./commands/merge")
   )
+  .command(
+    "check-conflicts <openapi.yaml> <...more.yaml>",
+    "check for conflicting components, paths, tags, and security schemes",
+    require("./commands/check-conflicts")
+  )
   .parse();
