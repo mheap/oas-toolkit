@@ -3,11 +3,6 @@ const isEqual = require("lodash.isequal");
 const uniqWith = require("lodash.uniqwith");
 
 function merge(objects, options) {
-  ensureNoComponentColissions(objects, options);
-  ensureNoPathColissions(objects, options);
-  ensureNoTagColissions(objects, options);
-  ensureNoSecurityColissions(objects, options);
-
   // Do the merge
   let combinedSpec = {};
 
