@@ -93,7 +93,9 @@ describe("#components", () => {
 
   it("removed unused components including parent", () => {
     expect(
-      c.removeComponents({ components }, ["components.requestBodies.CreateFoo"])
+      c.removeSpecifiedComponents({ components }, [
+        "components.requestBodies.CreateFoo",
+      ])
     ).toEqual({
       components: {
         schemas: {
@@ -117,7 +119,7 @@ describe("#components", () => {
 
   it("removed unused components but leaves the parent", () => {
     expect(
-      c.removeComponents({ components }, ["components.schemas.Foo"])
+      c.removeSpecifiedComponents({ components }, ["components.schemas.Foo"])
     ).toEqual({
       components: {
         schemas: {
@@ -125,6 +127,57 @@ describe("#components", () => {
             type: "object",
             properties: {
               bee: { type: "string" },
+            },
+          },
+        },
+        requestBodies: {
+          CreateFoo: {
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    bar: { type: "string" },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+  });
+
+  it("autodiscovers and removes unused components", () => {
+    expect(c.removeUnusedComponents(oas)).toEqual({
+      info: { title: "One" },
+      paths: {
+        "/foo": {
+          post: {
+            requestBody: {
+              $ref: "#/components/requestBodies/CreateFoo",
+            },
+            responses: {
+              201: {
+                content: {
+                  "application/json": {
+                    schema: {
+                      $ref: "#/components/schemas/Foo",
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      components: {
+        schemas: {
+          Foo: {
+            type: "object",
+            properties: {
+              bar: { type: "string" },
+              created_at: { type: "string" },
             },
           },
         },
