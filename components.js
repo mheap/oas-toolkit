@@ -24,12 +24,23 @@ function removeSpecifiedComponents(oas, unused) {
 }
 
 function getReferencedComponents(oas) {
-  return traverse(oas).reduce(function (acc, x) {
+  const components = traverse(oas).reduce(function (acc, x) {
     if (this.isLeaf && this.key == "$ref") {
       acc.push(x.replace("#/", "").replace(/\//g, "."));
     }
     return acc;
   }, []);
+
+  // Add security schemes
+  if (oas.security){
+    for (let item of oas.security){
+      for (let key of Object.keys(item)){
+        components.push(`components.securitySchemes.${key}`)
+      }
+    }
+  }
+
+  return components;
 }
 
 function getDefinedComponents(oas) {

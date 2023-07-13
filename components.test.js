@@ -1,6 +1,12 @@
 const c = require("./components");
 
 const components = {
+  securitySchemes: {
+    personalAccessToken: {
+      type: "http",
+      scheme: "bearer",
+    },
+  },
   schemas: {
     Foo: {
       type: "object",
@@ -34,6 +40,7 @@ const components = {
 
 const oas = {
   info: { title: "One" },
+  security: [{ personalAccessToken: {} }],
   paths: {
     "/foo": {
       post: {
@@ -62,6 +69,7 @@ describe("#components", () => {
     expect(c.getReferencedComponents(oas)).toEqual([
       "components.requestBodies.CreateFoo",
       "components.schemas.Foo",
+      "components.securitySchemes.personalAccessToken",
     ]);
   });
 
@@ -85,6 +93,7 @@ describe("#components", () => {
 
   it("returns all defined components)", () => {
     expect(c.getDefinedComponents(oas)).toEqual([
+      "components.securitySchemes.personalAccessToken",
       "components.schemas.Foo",
       "components.schemas.Baz",
       "components.requestBodies.CreateFoo",
@@ -98,6 +107,12 @@ describe("#components", () => {
       ])
     ).toEqual({
       components: {
+        securitySchemes: {
+          personalAccessToken: {
+            type: "http",
+            scheme: "bearer",
+          },
+        },
         schemas: {
           Foo: {
             properties: {
@@ -122,6 +137,12 @@ describe("#components", () => {
       c.removeSpecifiedComponents({ components }, ["components.schemas.Foo"])
     ).toEqual({
       components: {
+        securitySchemes: {
+          personalAccessToken: {
+            type: "http",
+            scheme: "bearer",
+          },
+        },
         schemas: {
           Baz: {
             type: "object",
@@ -151,6 +172,7 @@ describe("#components", () => {
   it("autodiscovers and removes unused components", () => {
     expect(c.removeUnusedComponents(oas)).toEqual({
       info: { title: "One" },
+      security: [{ personalAccessToken: {} }],
       paths: {
         "/foo": {
           post: {
@@ -181,6 +203,12 @@ describe("#components", () => {
             },
           },
         },
+        securitySchemes: {
+          personalAccessToken: {
+            type: "http",
+            scheme: "bearer",
+          },
+        },
         requestBodies: {
           CreateFoo: {
             content: {
@@ -193,6 +221,38 @@ describe("#components", () => {
                 },
               },
             },
+          },
+        },
+      },
+    });
+  });
+
+  it("removes unused security schemes", () => {
+    const securityOas = {
+      info: { title: "One" },
+      security: [{ personalAccessToken: {} }],
+      components: {
+        securitySchemes: {
+          personalAccessToken: {
+            type: "http",
+            scheme: "bearer",
+          },
+          systemAccessToken: {
+            type: "http",
+            scheme: "bearer",
+          },
+        },
+      },
+    };
+
+    expect(c.removeUnusedComponents(securityOas)).toEqual({
+      info: { title: "One" },
+      security: [{ personalAccessToken: {} }],
+      components: {
+        securitySchemes: {
+          personalAccessToken: {
+            type: "http",
+            scheme: "bearer",
           },
         },
       },
