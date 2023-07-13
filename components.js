@@ -2,7 +2,15 @@ const traverse = require("traverse");
 const get = require("lodash.get");
 const difference = require("lodash.difference");
 
-function removeComponents(oas, unused) {
+function removeUnusedComponents(oas) {
+  const used = getReferencedComponents(oas);
+  const defined = getDefinedComponents(oas);
+  const unused = getUnusedComponents(defined, used);
+
+  return removeSpecifiedComponents(oas, unused);
+}
+
+function removeSpecifiedComponents(oas, unused) {
   oas = traverse(oas).clone();
   return traverse(oas).forEach(function (x) {
     const path = this.path.join(".");
@@ -47,5 +55,6 @@ module.exports = {
   getReferencedComponents,
   getDefinedComponents,
   getUnusedComponents,
-  removeComponents,
+  removeSpecifiedComponents,
+  removeUnusedComponents,
 };
