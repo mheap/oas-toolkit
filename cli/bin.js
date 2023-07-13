@@ -14,4 +14,9 @@ yargs(hideBin(process.argv))
     "check for conflicting components, paths, tags, and security schemes",
     require("./commands/check-conflicts")
   )
+  .command(
+    "remove-unused-components <openapi.yaml>",
+    "remove unused components from the provided OpenAPI file",
+    require("./commands/remove-unused-components")
+  )
   .parse();
