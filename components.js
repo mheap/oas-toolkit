@@ -28,14 +28,23 @@ function getReferencedComponents(oas) {
     if (this.isLeaf && this.key == "$ref") {
       acc.push(x.replace("#/", "").replace(/\//g, "."));
     }
+
+    // Per-operation security schemes
+    if (this.node && this.node["operationId"] && this.node["security"]) {
+      for (let item of this.node["security"]) {
+        for (let key of Object.keys(item)) {
+          acc.push(`components.securitySchemes.${key}`);
+        }
+      }
+    }
     return acc;
   }, []);
 
-  // Add security schemes
-  if (oas.security){
-    for (let item of oas.security){
-      for (let key of Object.keys(item)){
-        components.push(`components.securitySchemes.${key}`)
+  // Add global security schemes
+  if (oas.security) {
+    for (let item of oas.security) {
+      for (let key of Object.keys(item)) {
+        components.push(`components.securitySchemes.${key}`);
       }
     }
   }
