@@ -258,4 +258,50 @@ describe("#components", () => {
       },
     });
   });
+
+  it("checks per-operation security schemas in addition to global", () => {
+    const securityOas = {
+      info: { title: "One" },
+      components: {
+        securitySchemes: {
+          personalAccessToken: {
+            type: "http",
+            scheme: "bearer",
+          },
+          systemAccessToken: {
+            type: "http",
+            scheme: "bearer",
+          },
+        },
+      },
+      paths: {
+        "/foo": {
+          post: {
+            operationId: "test-foo",
+            security: [{ systemAccessToken: {} }],
+          },
+        },
+      },
+    };
+
+    expect(c.removeUnusedComponents(securityOas)).toEqual({
+      info: { title: "One" },
+      paths: {
+        "/foo": {
+          post: {
+            operationId: "test-foo",
+            security: [{ systemAccessToken: {} }],
+          },
+        },
+      },
+      components: {
+        securitySchemes: {
+          systemAccessToken: {
+            type: "http",
+            scheme: "bearer",
+          },
+        },
+      },
+    });
+  });
 });
