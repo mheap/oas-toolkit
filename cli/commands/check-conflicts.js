@@ -19,6 +19,7 @@ module.exports = async function ({ argv }) {
     merger.ensureNoPathColissions(oas, argv);
     merger.ensureNoTagColissions(oas, argv);
     merger.ensureNoSecurityColissions(oas, argv);
+    merger.ensureNoComplexObjectCollisions(oas, argv);
   } catch (e) {
     console.error(`ERROR: ${e.message}`);
     process.exit(1);
