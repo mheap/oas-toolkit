@@ -453,3 +453,71 @@ describe("returns unique items for:", () => {
     });
   });
 });
+
+describe("validates the final output", () => {
+  it("throws when $ref is detected alongside other values", () => {
+    expect(() => {
+      merger([
+        {
+          components: {
+            schemas: {
+              DemoError: {
+                type: "object",
+                properties: {
+                  code: {
+                    type: "string",
+                    example: "ERROR_ABC",
+                  },
+                },
+              },
+            },
+          },
+        },
+        {
+          components: {
+            schemas: {
+              DemoError: {
+                $ref: "#/components/schemas/AnotherError",
+              },
+            },
+          },
+        },
+      ]);
+    }).toThrow(
+      "Cannot have $ref and other properties at the same level: components.schemas.DemoError.$ref"
+    );
+  });
+
+  it("throws when $ref is detected alongside other values", () => {
+    expect(() => {
+      merger([
+        {
+          components: {
+            schemas: {
+              DemoError: {
+                type: "object",
+                properties: {
+                  code: {
+                    type: "string",
+                    example: "ERROR_ABC",
+                  },
+                },
+              },
+            },
+          },
+        },
+        {
+          components: {
+            schemas: {
+              DemoError: {
+                oneOf: ["#/components/schemas/AnotherError"],
+              },
+            },
+          },
+        },
+      ]);
+    }).toThrow(
+      "Cannot have oneOf and other properties at the same level: components.schemas.DemoError.oneOf"
+    );
+  });
+});
