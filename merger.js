@@ -36,6 +36,19 @@ function merge(objects, options) {
     }
   });
 
+  // Validate that $ref is the only thing at a specific level
+  combinedSpec = traverse(combinedSpec).map(function () {
+    if (["oneOf", "allOf", "anyOf", "$ref"].includes(this.key)) {
+      if (Object.keys(this.parent.node).length > 1) {
+        throw new Error(
+          `Cannot have ${
+            this.key
+          } and other properties at the same level: ${this.path.join(".")}`
+        );
+      }
+    }
+  });
+
   return combinedSpec;
 }
 
