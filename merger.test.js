@@ -189,7 +189,90 @@ describe("#ensureNoComplexObjectCollisions", () => {
     );
   });
 
-  it("throws when $ref is detected alongside other values", () => {
+  it("does not throw when refs point to the same component", () => {
+    expect(() => {
+      ensureNoComplexObjectCollisions([
+        {
+          info: { title: "One" },
+          components: {
+            schemas: {
+              DemoError: {
+                $ref: "#/components/schemas/AnotherError",
+              },
+            },
+          },
+        },
+        {
+          info: { title: "Two" },
+          components: {
+            schemas: {
+              DemoError: {
+                $ref: "#/components/schemas/AnotherError",
+              },
+            },
+          },
+        },
+      ]);
+    }).not.toThrow();
+  });
+
+  it("does not throw when oneOf point to the same component (order independent)", () => {
+    expect(() => {
+      ensureNoComplexObjectCollisions([
+        {
+          info: { title: "One" },
+          components: {
+            schemas: {
+              DemoError: {
+                oneOf: ["#/components/schemas/One", "#/components/schemas/Two"],
+              },
+            },
+          },
+        },
+        {
+          info: { title: "Two" },
+          components: {
+            schemas: {
+              DemoError: {
+                oneOf: ["#/components/schemas/Two", "#/components/schemas/One"],
+              },
+            },
+          },
+        },
+      ]);
+    }).not.toThrow();
+  });
+
+  it("throws when allOf values are provided in different orders", () => {
+    expect(() => {
+      ensureNoComplexObjectCollisions([
+        {
+          info: { title: "One" },
+          components: {
+            schemas: {
+              DemoError: {
+                allOf: ["#/components/schemas/One", "#/components/schemas/Two"],
+              },
+            },
+          },
+        },
+        {
+          info: { title: "Two" },
+          components: {
+            schemas: {
+              DemoError: {
+                allOf: ["#/components/schemas/Two", "#/components/schemas/One"],
+              },
+            },
+          },
+        },
+      ]);
+    }).toThrow(
+      "Conflicting complex object detected: components.schemas.DemoError (One[allOf], Two[allOf])"
+    );
+  });
+
+  it("throws when oneOf is detected alongside other values", () => {
     expect(() => {
       ensureNoComplexObjectCollisions([
         {

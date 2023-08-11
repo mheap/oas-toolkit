@@ -204,15 +204,42 @@ function ensureNoComplexObjectCollisions(objects) {
       ) {
         const k = this.path.slice(0, -1).join(".");
         allPaths[k] = allPaths[k] || [];
-        allPaths[k].push({ key: this.key, file: object.info.title });
+        allPaths[k].push({
+          key: this.key,
+          file: object.info.title,
+          value: this.node,
+        });
       }
     });
   }
 
   for (let path in allPaths) {
     if (allPaths[path].length > 1) {
+      const v = allPaths[path];
+
+      // If all entries for this path use the same special key
+      if (
+        uniqWith(
+          v.map((f) => f.key),
+          isEqual
+        ).length == 1
+      ) {
+        // Check if all the values are the same
+        const values = v.map((f) => {
+          // If it's a oneOf, order doesn't matter so sort for comparison
+          if (f.key == "oneOf") {
+            f.value.sort();
+          }
+          return f.value;
+        });
+
+        if (isEqual(...values)) {
+          continue;
+        }
+      }
+
       throw new Error(
-        `Conflicting complex object detected: ${path} (${allPaths[path]
+        `Conflicting complex object detected: ${path} (${v
           .map((f) => `${f.file}[${f.key}]`)
           .join(", ")})`
       );
