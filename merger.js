@@ -36,19 +36,6 @@ function merge(objects, options) {
     }
   });
 
-  // Validate that $ref is the only thing at a specific level
-  combinedSpec = traverse(combinedSpec).map(function () {
-    if (["oneOf", "allOf", "anyOf", "$ref"].includes(this.key)) {
-      if (Object.keys(this.parent.node).length > 1) {
-        throw new Error(
-          `Cannot have ${
-            this.key
-          } and other properties at the same level: ${this.path.join(".")}`
-        );
-      }
-    }
-  });
-
   return combinedSpec;
 }
 
@@ -208,9 +195,35 @@ function ensureNoSecurityColissions(objects) {
   }
 }
 
+function ensureNoComplexObjectCollisions(objects) {
+  const allPaths = {};
+  for (let object of objects) {
+    traverse(object).forEach(function () {
+      if (
+        ["oneOf", "allOf", "anyOf", "$ref", "properties"].includes(this.key)
+      ) {
+        const k = this.path.slice(0, -1).join(".");
+        allPaths[k] = allPaths[k] || [];
+        allPaths[k].push({ key: this.key, file: object.info.title });
+      }
+    });
+  }
+
+  for (let path in allPaths) {
+    if (allPaths[path].length > 1) {
+      throw new Error(
+        `Conflicting complex object detected: ${path} (${allPaths[path]
+          .map((f) => `${f.file}[${f.key}]`)
+          .join(", ")})`
+      );
+    }
+  }
+}
+
 module.exports = Object.assign(merge, {
   ensureNoComponentColissions,
   ensureNoPathColissions,
   ensureNoTagColissions,
   ensureNoSecurityColissions,
+  ensureNoComplexObjectCollisions,
 });

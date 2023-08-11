@@ -3,6 +3,7 @@ const {
   ensureNoPathColissions,
   ensureNoTagColissions,
   ensureNoSecurityColissions,
+  ensureNoComplexObjectCollisions,
 } = require("./merger");
 const merger = require("./merger");
 
@@ -148,6 +149,78 @@ describe("#ensureNoComponentColissions", () => {
       new Error(
         "Duplicate component detected: components.schemas.BarSchema (One, Two)"
       )
+    );
+  });
+});
+
+describe("#ensureNoComplexObjectCollisions", () => {
+  it("throws when $ref is detected alongside other values", () => {
+    expect(() => {
+      ensureNoComplexObjectCollisions([
+        {
+          info: { title: "One" },
+          components: {
+            schemas: {
+              DemoError: {
+                type: "object",
+                properties: {
+                  code: {
+                    type: "string",
+                    example: "ERROR_ABC",
+                  },
+                },
+              },
+            },
+          },
+        },
+        {
+          info: { title: "Two" },
+          components: {
+            schemas: {
+              DemoError: {
+                $ref: "#/components/schemas/AnotherError",
+              },
+            },
+          },
+        },
+      ]);
+    }).toThrow(
+      "Conflicting complex object detected: components.schemas.DemoError (One[properties], Two[$ref])"
+    );
+  });
+
+  it("throws when $ref is detected alongside other values", () => {
+    expect(() => {
+      ensureNoComplexObjectCollisions([
+        {
+          info: { title: "One" },
+          components: {
+            schemas: {
+              DemoError: {
+                type: "object",
+                properties: {
+                  code: {
+                    type: "string",
+                    example: "ERROR_ABC",
+                  },
+                },
+              },
+            },
+          },
+        },
+        {
+          info: { title: "Two" },
+          components: {
+            schemas: {
+              DemoError: {
+                oneOf: ["#/components/schemas/AnotherError"],
+              },
+            },
+          },
+        },
+      ]);
+    }).toThrow(
+      "Conflicting complex object detected: components.schemas.DemoError (One[properties], Two[oneOf])"
     );
   });
 });
@@ -451,73 +524,5 @@ describe("returns unique items for:", () => {
         },
       },
     });
-  });
-});
-
-describe("validates the final output", () => {
-  it("throws when $ref is detected alongside other values", () => {
-    expect(() => {
-      merger([
-        {
-          components: {
-            schemas: {
-              DemoError: {
-                type: "object",
-                properties: {
-                  code: {
-                    type: "string",
-                    example: "ERROR_ABC",
-                  },
-                },
-              },
-            },
-          },
-        },
-        {
-          components: {
-            schemas: {
-              DemoError: {
-                $ref: "#/components/schemas/AnotherError",
-              },
-            },
-          },
-        },
-      ]);
-    }).toThrow(
-      "Cannot have $ref and other properties at the same level: components.schemas.DemoError.$ref"
-    );
-  });
-
-  it("throws when $ref is detected alongside other values", () => {
-    expect(() => {
-      merger([
-        {
-          components: {
-            schemas: {
-              DemoError: {
-                type: "object",
-                properties: {
-                  code: {
-                    type: "string",
-                    example: "ERROR_ABC",
-                  },
-                },
-              },
-            },
-          },
-        },
-        {
-          components: {
-            schemas: {
-              DemoError: {
-                oneOf: ["#/components/schemas/AnotherError"],
-              },
-            },
-          },
-        },
-      ]);
-    }).toThrow(
-      "Cannot have oneOf and other properties at the same level: components.schemas.DemoError.oneOf"
-    );
   });
 });
