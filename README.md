@@ -8,7 +8,7 @@ The project provides the following functionality:
 
 - Merge multiple OAS documents into a single file
 - Add/patch values in place
-- Remove arbritary keys from the specification
+- Remove arbritrary keys from the specification
 - Remove unused components
 
 ## Merge
