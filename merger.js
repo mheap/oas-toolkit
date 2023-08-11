@@ -1,4 +1,5 @@
 const mergician = require("mergician");
+const traverse = require("traverse");
 const isEqual = require("lodash.isequal");
 const uniqWith = require("lodash.uniqwith");
 
@@ -27,6 +28,13 @@ function merge(objects, options) {
       combinedSpec[section] = uniqWith(combinedSpec[section], isEqual);
     }
   }
+
+  // Unique values that are at a non-deterministic path
+  combinedSpec = traverse(combinedSpec).map(function () {
+    if (["oneOf", "allOf", "anyOf"].includes(this.key)) {
+      this.node = uniqWith(this.node, isEqual);
+    }
+  });
 
   return combinedSpec;
 }

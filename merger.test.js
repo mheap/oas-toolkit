@@ -334,4 +334,122 @@ describe("returns unique items for:", () => {
       security: [{ appKey: [] }],
     });
   });
+
+  it("oneOf", () => {
+    expect(
+      merger([
+        {
+          components: {
+            schemas: {
+              DemoError: {
+                oneOf: [
+                  { $ref: "#/components/schemas/One" },
+                  { $ref: "#/components/schemas/Two" },
+                  { $ref: "#/components/schemas/Three" },
+                ],
+              },
+            },
+          },
+        },
+        {
+          components: {
+            schemas: {
+              DemoError: {
+                oneOf: [
+                  { $ref: "#/components/schemas/One" },
+                  { $ref: "#/components/schemas/Two" },
+                  { $ref: "#/components/schemas/Four" },
+                ],
+              },
+              AnotherError: {
+                $ref: "#/components/schemas/One",
+              },
+            },
+          },
+        },
+      ])
+    ).toEqual({
+      components: {
+        schemas: {
+          DemoError: {
+            oneOf: [
+              { $ref: "#/components/schemas/One" },
+              { $ref: "#/components/schemas/Two" },
+              { $ref: "#/components/schemas/Three" },
+              { $ref: "#/components/schemas/Four" },
+            ],
+          },
+          AnotherError: {
+            $ref: "#/components/schemas/One",
+          },
+        },
+      },
+    });
+  });
+
+  it("allOf", () => {
+    expect(
+      merger([
+        {
+          components: {
+            schemas: {
+              DemoError: {
+                allOf: [{ $ref: "#/components/schemas/One" }],
+              },
+            },
+          },
+        },
+        {
+          components: {
+            schemas: {
+              DemoError: {
+                allOf: [{ $ref: "#/components/schemas/One" }],
+              },
+            },
+          },
+        },
+      ])
+    ).toEqual({
+      components: {
+        schemas: {
+          DemoError: {
+            allOf: [{ $ref: "#/components/schemas/One" }],
+          },
+        },
+      },
+    });
+  });
+
+  it("anyOf", () => {
+    expect(
+      merger([
+        {
+          components: {
+            schemas: {
+              DemoError: {
+                allOf: [{ $ref: "#/components/schemas/One" }],
+              },
+            },
+          },
+        },
+        {
+          components: {
+            schemas: {
+              DemoError: {
+                allOf: [{ $ref: "#/components/schemas/One" }],
+              },
+            },
+          },
+        },
+      ])
+    ).toEqual({
+      components: {
+        schemas: {
+          DemoError: {
+            allOf: [{ $ref: "#/components/schemas/One" }],
+          },
+        },
+      },
+    });
+  });
 });
