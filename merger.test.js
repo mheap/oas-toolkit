@@ -491,6 +491,41 @@ describe("returns unique items for:", () => {
     });
   });
 
+  fit("handles keys that don't exist in both specs", () => {
+    expect(
+      merger([
+        {
+          openapi: "3.0.3",
+          paths: {
+            "/users": {
+              get: {
+                operationId: "list-users",
+              },
+            },
+          },
+        },
+        {
+          openapi: "3.0.2",
+          info: {
+            title: "Two",
+          },
+        },
+      ])
+    ).toEqual({
+      openapi: "3.0.2",
+      info: {
+        title: "Two",
+      },
+      paths: {
+        "/users": {
+          get: {
+            operationId: "list-users",
+          },
+        },
+      },
+    });
+  });
+
   it("oneOf", () => {
     expect(
       merger([
