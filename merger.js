@@ -46,11 +46,10 @@ function mergeSection(spec, merger, objects, section) {
       null,
       objects
         .map((o) => {
-          if (!o[section]) {
-            return null;
-          }
           const r = {};
-          r[section] = o[section];
+          if (o[section]) {
+            r[section] = o[section];
+          }
           return r;
         })
         .filter(Boolean)
