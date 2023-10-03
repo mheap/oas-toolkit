@@ -19,4 +19,9 @@ yargs(hideBin(process.argv))
     "remove unused components from the provided OpenAPI file",
     require("./commands/remove-unused-components")
   )
+  .command(
+    "remove-unused-tags <openapi.yaml>",
+    "remove unused tags from the provided OpenAPI file",
+    require("./commands/remove-unused-tags")
+  )
   .parse();
