@@ -10,7 +10,7 @@ function removeUnusedTags(oas) {
 }
 
 function removeSpecifiedTags(oas, unused) {
-  oas = { ...oas }; // Prevent modification of original object
+  oas = JSON.parse(JSON.stringify(oas)); // Prevent modification of original object
   oas.tags = oas.tags.filter((t) => !unused.includes(t.name));
   return oas;
 }
