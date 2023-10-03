@@ -24,4 +24,9 @@ yargs(hideBin(process.argv))
     "remove unused tags from the provided OpenAPI file",
     require("./commands/remove-unused-tags")
   )
+  .command(
+    "rewrite-path <openapi.yaml> --oldPrefix '^/v1' --newPrefix '/v2'",
+    "rewrite paths in the provided OpenAPI file",
+    require("./commands/rewrite-path")
+  )
   .parse();
