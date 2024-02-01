@@ -2,6 +2,7 @@ const traverse = require("traverse");
 const isEqual = require("lodash.isequal");
 const difference = require("lodash.difference");
 const intersection = require("lodash.intersection");
+const uniqWith = require("lodash.uniqwith");
 
 function removeUnusedComponents(oas) {
   const used = getReferencedComponents(oas);
@@ -114,6 +115,16 @@ function getUnusedComponents(all, referenced, oas) {
     // If there's a circular dependency and nothing else, it can be removed
     for (let ref of references) {
       referencesTo[ref] = getRecursiveReferencesToComponent(oas, ref);
+      // Add all the references for each reference to build a complete list
+      referencesTo[ref] = referencesTo[ref].concat(
+        referencesTo[ref].flatMap((r) => {
+          if (!referencesTo[r]) {
+            return [];
+          }
+          return referencesTo[r];
+        })
+      );
+      referencesTo[ref] = uniqWith(referencesTo[ref], isEqual);
     }
 
     let shouldRemove = true;
@@ -129,7 +140,12 @@ function getUnusedComponents(all, referenced, oas) {
   return unused;
 }
 
+const recursiveCache = {};
 function getRecursiveReferencesToComponent(oas, component, originalComponents) {
+  if (recursiveCache[component]) {
+    return recursiveCache[component];
+  }
+
   if (!originalComponents) {
     originalComponents = [];
   }
@@ -144,6 +160,7 @@ function getRecursiveReferencesToComponent(oas, component, originalComponents) {
   }
   refs.sort();
 
+  recursiveCache[component] = refs;
   return refs;
 }
 
