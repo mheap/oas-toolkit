@@ -140,7 +140,12 @@ function getUnusedComponents(all, referenced, oas) {
   return unused;
 }
 
-const recursiveCache = {};
+let recursiveCache = {};
+
+function resetReferenceCache() {
+  recursiveCache = {};
+}
+
 function getRecursiveReferencesToComponent(oas, component, originalComponents) {
   if (recursiveCache[component]) {
     return recursiveCache[component];
@@ -170,4 +175,5 @@ module.exports = {
   getUnusedComponents,
   removeSpecifiedComponents,
   removeUnusedComponents,
+  resetReferenceCache,
 };
