@@ -1,19 +1,16 @@
 const traverse = require("traverse");
 const isEqual = require("lodash.isequal");
 const difference = require("lodash.difference");
-const intersection = require("lodash.intersection");
-const uniqWith = require("lodash.uniqwith");
+const get = require("lodash.get");
 
-// This is a horrible global hack, but it works
-let referencesTo = {};
-let recursiveCache = {};
-
+let seenItems = {};
 function removeUnusedComponents(oas) {
   // Reset all caches on each invocation
-  recursiveCache = {};
-  referencesTo = {};
+  seenItems = {};
 
-  const used = getReferencedComponents(oas);
+  let used = findReferencesRecursive("paths", oas);
+  // Add global security schemes
+  used = used.concat(getSecuritySchemes(oas));
   const defined = getDefinedComponents(oas);
   const unused = getUnusedComponents(defined, used, oas);
 
@@ -28,31 +25,25 @@ function removeUnusedComponents(oas) {
   return removeUnusedComponents(result);
 }
 
-function getReferencesToComponent(oas, component) {
-  return traverse(oas).reduce(function (acc, x) {
-    if (
-      this.isLeaf &&
-      this.key == "$ref" &&
-      x == `#/${component.replace(/\./g, "/")}`
-    ) {
-      acc.push(this.path.slice(0, 3).join("."));
-    }
+function findReferencesRecursive(ref, completeOas) {
+  if (seenItems[ref]) {
+    return [];
+  }
+  seenItems[ref] = true;
 
-    return acc;
-  }, []);
-}
-
-function removeSpecifiedComponents(oas, unused) {
-  oas = traverse(oas).clone();
-  return traverse(oas).forEach(function (x) {
-    const path = this.path.join(".");
-    if (unused.includes(path)) {
-      this.remove();
-      if (Object.keys(this.parent.node).length === 0) {
-        this.parent.remove();
+  let refs = [];
+  const section = get(completeOas, ref);
+  if (section) {
+    refs = getReferencedComponents(section);
+    if (refs.length) {
+      for (let ref of refs) {
+        const found = findReferencesRecursive(ref, completeOas);
+        refs = refs.concat(found);
       }
     }
-  });
+  }
+
+  return Array.from(new Set(refs));
 }
 
 function getReferencedComponents(oas) {
@@ -72,7 +63,11 @@ function getReferencedComponents(oas) {
     return acc;
   }, []);
 
-  // Add global security schemes
+  return Array.from(new Set(components));
+}
+
+function getSecuritySchemes(oas) {
+  const components = [];
   if (oas.security) {
     for (let item of oas.security) {
       for (let key of Object.keys(item)) {
@@ -80,8 +75,20 @@ function getReferencedComponents(oas) {
       }
     }
   }
-
   return components;
+}
+
+function removeSpecifiedComponents(oas, unused) {
+  oas = traverse(oas).clone();
+  return traverse(oas).forEach(function (x) {
+    const path = this.path.join(".");
+    if (unused.includes(path)) {
+      this.remove();
+      if (Object.keys(this.parent.node).length === 0) {
+        this.parent.remove();
+      }
+    }
+  });
 }
 
 function getDefinedComponents(oas) {
@@ -100,73 +107,7 @@ function getDefinedComponents(oas) {
 }
 
 function getUnusedComponents(all, referenced, oas) {
-  const unused = difference(all, referenced);
-
-  if (!oas) {
-    return unused;
-  }
-
-  // If we have a component that is only referenced by itself, it's unused
-  const used = intersection(all, referenced);
-  for (let component of used) {
-    if (component.startsWith("components.securitySchemes")) {
-      continue;
-    }
-
-    const references = getReferencesToComponent(oas, component);
-    if (references.length == 1 && references[0] === component) {
-      unused.push(component);
-    }
-
-    // If there's a circular dependency and nothing else, it can be removed
-    for (let ref of references) {
-      referencesTo[ref] = getRecursiveReferencesToComponent(oas, ref);
-      // Add all the references for each reference to build a complete list
-      referencesTo[ref] = referencesTo[ref].concat(
-        referencesTo[ref].flatMap((r) => {
-          if (!referencesTo[r]) {
-            return [];
-          }
-          return referencesTo[r];
-        })
-      );
-      referencesTo[ref] = uniqWith(referencesTo[ref], isEqual);
-    }
-
-    let shouldRemove = true;
-    for (let ref of references) {
-      if (!isEqual(referencesTo[component], referencesTo[ref])) {
-        shouldRemove = false;
-      }
-    }
-    if (shouldRemove) {
-      unused.push(component);
-    }
-  }
-  return unused;
-}
-
-function getRecursiveReferencesToComponent(oas, component, originalComponents) {
-  if (recursiveCache[component]) {
-    return recursiveCache[component];
-  }
-
-  if (!originalComponents) {
-    originalComponents = [];
-  }
-  originalComponents.push(component);
-  let refs = getReferencesToComponent(oas, component);
-  for (const ref of refs) {
-    if (!originalComponents.includes(ref)) {
-      refs = refs.concat(
-        getRecursiveReferencesToComponent(oas, ref, originalComponents)
-      );
-    }
-  }
-  refs.sort();
-
-  recursiveCache[component] = refs;
-  return refs;
+  return difference(all, referenced);
 }
 
 module.exports = {
@@ -175,4 +116,5 @@ module.exports = {
   getUnusedComponents,
   removeSpecifiedComponents,
   removeUnusedComponents,
+  getSecuritySchemes,
 };

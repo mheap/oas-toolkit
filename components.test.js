@@ -69,6 +69,11 @@ describe("#components", () => {
     expect(c.getReferencedComponents(oas)).toEqual([
       "components.requestBodies.CreateFoo",
       "components.schemas.Foo",
+    ]);
+  });
+
+  it("extracts security schemes", () => {
+    expect(c.getSecuritySchemes(oas)).toEqual([
       "components.securitySchemes.personalAccessToken",
     ]);
   });
