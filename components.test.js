@@ -253,6 +253,113 @@ describe("#components", () => {
     });
   });
 
+  it("Removes schemas that are circular", () => {
+    expect(
+      c.removeUnusedComponents({
+        info: { title: "One" },
+        components: {
+          schemas: {
+            MySchema: {
+              type: "object",
+              properties: {
+                subSchema: {
+                  $ref: "#/components/schemas/MySchema",
+                },
+              },
+            },
+          },
+        },
+      })
+    ).toEqual({
+      info: { title: "One" },
+      components: {},
+    });
+  });
+
+  it("Does not remove circular schemas that are also referenced elsewhere", () => {
+    expect(
+      c.removeUnusedComponents({
+        info: { title: "One" },
+        paths: {
+          "/foo": {
+            get: {
+              responses: {
+                200: {
+                  content: {
+                    "application/json": {
+                      schema: {
+                        $ref: "#/components/schemas/AnotherSchema",
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        components: {
+          schemas: {
+            MySchema: {
+              type: "object",
+              properties: {
+                subSchema: {
+                  $ref: "#/components/schemas/MySchema",
+                },
+              },
+            },
+            AnotherSchema: {
+              type: "object",
+              properties: {
+                Foo: {
+                  $ref: "#/components/schemas/MySchema",
+                },
+              },
+            },
+          },
+        },
+      })
+    ).toEqual({
+      info: { title: "One" },
+      paths: {
+        "/foo": {
+          get: {
+            responses: {
+              200: {
+                content: {
+                  "application/json": {
+                    schema: {
+                      $ref: "#/components/schemas/AnotherSchema",
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      components: {
+        schemas: {
+          MySchema: {
+            type: "object",
+            properties: {
+              subSchema: {
+                $ref: "#/components/schemas/MySchema",
+              },
+            },
+          },
+          AnotherSchema: {
+            type: "object",
+            properties: {
+              Foo: {
+                $ref: "#/components/schemas/MySchema",
+              },
+            },
+          },
+        },
+      },
+    });
+  });
+
   it("removes unused security schemes", () => {
     const securityOas = {
       info: { title: "One" },

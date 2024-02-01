@@ -1,11 +1,12 @@
 const traverse = require("traverse");
 const isEqual = require("lodash.isequal");
 const difference = require("lodash.difference");
+const intersection = require("lodash.intersection");
 
 function removeUnusedComponents(oas) {
   const used = getReferencedComponents(oas);
   const defined = getDefinedComponents(oas);
-  const unused = getUnusedComponents(defined, used);
+  const unused = getUnusedComponents(defined, used, oas);
 
   const result = removeSpecifiedComponents(oas, unused);
 
@@ -16,6 +17,20 @@ function removeUnusedComponents(oas) {
   }
 
   return removeUnusedComponents(result);
+}
+
+function getReferencesToComponent(oas, component) {
+  return traverse(oas).reduce(function (acc, x) {
+    if (
+      this.isLeaf &&
+      this.key == "$ref" &&
+      x == `#/${component.replace(/\./g, "/")}`
+    ) {
+      acc.push(this.path.slice(0, 3).join("."));
+    }
+
+    return acc;
+  }, []);
 }
 
 function removeSpecifiedComponents(oas, unused) {
@@ -75,8 +90,18 @@ function getDefinedComponents(oas) {
   }, []);
 }
 
-function getUnusedComponents(all, referenced) {
-  return difference(all, referenced);
+function getUnusedComponents(all, referenced, oas) {
+  const unused = difference(all, referenced);
+
+  // If we have a component that is only referenced by itself, it's unused
+  const used = intersection(all, referenced);
+  for (let component of used) {
+    const references = getReferencesToComponent(oas, component);
+    if (references.length == 1 && references[0] === component) {
+      unused.push(component);
+    }
+  }
+  return unused;
 }
 
 module.exports = {
