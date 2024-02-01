@@ -491,7 +491,7 @@ describe("returns unique items for:", () => {
     });
   });
 
-  fit("handles keys that don't exist in both specs", () => {
+  it("handles keys that don't exist in both specs", () => {
     expect(
       merger([
         {
