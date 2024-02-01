@@ -21,6 +21,7 @@
     "jsonpath-plus": "^7.2.0",
     "lodash.difference": "^4.5.0",
     "lodash.get": "^4.4.2",
+    "lodash.intersection": "^4.4.0",
     "lodash.isequal": "^4.5.0",
     "lodash.uniqwith": "^4.5.0",
     "mergician": "^1.1.0",
