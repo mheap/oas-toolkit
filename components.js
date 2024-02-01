@@ -1,5 +1,5 @@
 const traverse = require("traverse");
-const get = require("lodash.get");
+const isEqual = require("lodash.isequal");
 const difference = require("lodash.difference");
 
 function removeUnusedComponents(oas) {
@@ -7,7 +7,15 @@ function removeUnusedComponents(oas) {
   const defined = getDefinedComponents(oas);
   const unused = getUnusedComponents(defined, used);
 
-  return removeSpecifiedComponents(oas, unused);
+  const result = removeSpecifiedComponents(oas, unused);
+
+  // If nothing was removed, we've removed all unused components
+  // including those referenced by other components that were unused
+  if (isEqual(oas, result)) {
+    return result;
+  }
+
+  return removeUnusedComponents(result);
 }
 
 function removeSpecifiedComponents(oas, unused) {
