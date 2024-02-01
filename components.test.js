@@ -227,6 +227,32 @@ describe("#components", () => {
     });
   });
 
+  it("Removes schemas that are only referenced by removed schemas", () => {
+    expect(
+      c.removeUnusedComponents({
+        info: { title: "One" },
+        components: {
+          schemas: {
+            SubSchema: {
+              type: "string",
+            },
+            MySchema: {
+              type: "object",
+              properties: {
+                subSchema: {
+                  $ref: "#/components/schemas/SubSchema",
+                },
+              },
+            },
+          },
+        },
+      })
+    ).toEqual({
+      info: { title: "One" },
+      components: {},
+    });
+  });
+
   it("removes unused security schemes", () => {
     const securityOas = {
       info: { title: "One" },
