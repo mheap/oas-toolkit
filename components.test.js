@@ -253,7 +253,7 @@ describe("#components", () => {
     });
   });
 
-  it("Removes schemas that are circular", () => {
+  it("Removes schemas that are circular (self reference)", () => {
     expect(
       c.removeUnusedComponents({
         info: { title: "One" },
@@ -264,6 +264,42 @@ describe("#components", () => {
               properties: {
                 subSchema: {
                   $ref: "#/components/schemas/MySchema",
+                },
+              },
+            },
+          },
+        },
+      })
+    ).toEqual({
+      info: { title: "One" },
+      components: {},
+    });
+  });
+
+  it("Removes schemas that are circular (loop)", () => {
+    expect(
+      c.removeUnusedComponents({
+        info: { title: "One" },
+        components: {
+          schemas: {
+            SchemaA: {
+              properties: {
+                subSchema: {
+                  $ref: "#/components/schemas/SchemaC",
+                },
+              },
+            },
+            SchemaB: {
+              properties: {
+                subSchema: {
+                  $ref: "#/components/schemas/SchemaA",
+                },
+              },
+            },
+            SchemaC: {
+              properties: {
+                subSchema: {
+                  $ref: "#/components/schemas/SchemaB",
                 },
               },
             },

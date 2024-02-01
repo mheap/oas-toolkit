@@ -90,18 +90,61 @@ function getDefinedComponents(oas) {
   }, []);
 }
 
+// This is a horrible global hack, but it works
+const referencesTo = {};
 function getUnusedComponents(all, referenced, oas) {
   const unused = difference(all, referenced);
+
+  if (!oas) {
+    return unused;
+  }
 
   // If we have a component that is only referenced by itself, it's unused
   const used = intersection(all, referenced);
   for (let component of used) {
+    if (component.startsWith("components.securitySchemes")) {
+      continue;
+    }
+
     const references = getReferencesToComponent(oas, component);
     if (references.length == 1 && references[0] === component) {
       unused.push(component);
     }
+
+    // If there's a circular dependency and nothing else, it can be removed
+    for (let ref of references) {
+      referencesTo[ref] = getRecursiveReferencesToComponent(oas, ref);
+    }
+
+    let shouldRemove = true;
+    for (let ref of references) {
+      if (!isEqual(referencesTo[component], referencesTo[ref])) {
+        shouldRemove = false;
+      }
+    }
+    if (shouldRemove) {
+      unused.push(component);
+    }
   }
   return unused;
+}
+
+function getRecursiveReferencesToComponent(oas, component, originalComponents) {
+  if (!originalComponents) {
+    originalComponents = [];
+  }
+  originalComponents.push(component);
+  let refs = getReferencesToComponent(oas, component);
+  for (const ref of refs) {
+    if (!originalComponents.includes(ref)) {
+      refs = refs.concat(
+        getRecursiveReferencesToComponent(oas, ref, originalComponents)
+      );
+    }
+  }
+  refs.sort();
+
+  return refs;
 }
 
 module.exports = {
