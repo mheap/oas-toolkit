@@ -4,7 +4,15 @@ const difference = require("lodash.difference");
 const intersection = require("lodash.intersection");
 const uniqWith = require("lodash.uniqwith");
 
+// This is a horrible global hack, but it works
+let referencesTo = {};
+let recursiveCache = {};
+
 function removeUnusedComponents(oas) {
+  // Reset all caches on each invocation
+  recursiveCache = {};
+  referencesTo = {};
+
   const used = getReferencedComponents(oas);
   const defined = getDefinedComponents(oas);
   const unused = getUnusedComponents(defined, used, oas);
@@ -91,8 +99,6 @@ function getDefinedComponents(oas) {
   }, []);
 }
 
-// This is a horrible global hack, but it works
-const referencesTo = {};
 function getUnusedComponents(all, referenced, oas) {
   const unused = difference(all, referenced);
 
@@ -140,12 +146,6 @@ function getUnusedComponents(all, referenced, oas) {
   return unused;
 }
 
-let recursiveCache = {};
-
-function resetReferenceCache() {
-  recursiveCache = {};
-}
-
 function getRecursiveReferencesToComponent(oas, component, originalComponents) {
   if (recursiveCache[component]) {
     return recursiveCache[component];
@@ -175,5 +175,4 @@ module.exports = {
   getUnusedComponents,
   removeSpecifiedComponents,
   removeUnusedComponents,
-  resetReferenceCache,
 };
