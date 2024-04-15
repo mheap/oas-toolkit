@@ -34,3 +34,21 @@ Merge the following lists/objects recursively. If you encounter a list, concaten
 - tags
 - components
 - paths
+
+## Remove by Annotation
+
+```bash
+oas-toolkit remove-with-annotation --annotation x-visibility.internal=true /tmp/openapi.yaml
+```
+
+Remove paths or operations from an OpenAPI spec based on an annotation. The example provided will remove any paths or operations with the following annotation:
+
+```json
+{
+  "x-visibility": {
+    "internal": true
+  }
+}
+```
+
+You can pass `--remove-unused` to run `remove-unused-components` and `remove-tags` after running this command.
