@@ -25,6 +25,25 @@ yargs(hideBin(process.argv))
     require("./commands/remove-unused-tags")
   )
   .command(
+    "remove-with-annotation <openapi>",
+    "remove all paths/select paths/operations with a specific annotation from the provided OpenAPI file",
+    (yargs) => {
+      yargs.option("annotation", {
+        demandOption: true,
+      });
+      yargs.option("remove-unused", {
+        demandOption: false,
+        type: "boolean",
+      });
+      yargs.positional("openapi", {
+        require: true,
+        describe: "the OpenAPI file to rewrite",
+        type: "string",
+      });
+    },
+    require("./commands/remove-with-annotation")
+  )
+  .command(
     "rewrite-path <openapi>",
     "rewrite paths in the provided OpenAPI file",
     (yargs) => {
