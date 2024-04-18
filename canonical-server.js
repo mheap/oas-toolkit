@@ -23,6 +23,10 @@ function run(oas) {
     isEqual
   ).filter((n) => n);
 
+  if (basePaths.length === 0) {
+    return oas;
+  }
+
   if (basePaths.length > 1) {
     throw new Error(
       `Base paths are different in the servers block. Found: ${basePaths.join(
