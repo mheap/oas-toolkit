@@ -5,22 +5,22 @@ const { hideBin } = require("yargs/helpers");
 
 yargs(hideBin(process.argv))
   .command(
-    "merge <openapi.yaml> <...more.yaml>",
+    "merge <openapi> <...more.yaml>",
     "merge the provided OpenAPI files",
     require("./commands/merge")
   )
   .command(
-    "check-conflicts <openapi.yaml> <...more.yaml>",
+    "check-conflicts <openapi> <...more.yaml>",
     "check for conflicting components, paths, tags, and security schemes",
     require("./commands/check-conflicts")
   )
   .command(
-    "remove-unused-components <openapi.yaml>",
+    "remove-unused-components <openapi>",
     "remove unused components from the provided OpenAPI file",
     require("./commands/remove-unused-components")
   )
   .command(
-    "remove-unused-tags <openapi.yaml>",
+    "remove-unused-tags <openapi>",
     "remove unused tags from the provided OpenAPI file",
     require("./commands/remove-unused-tags")
   )
@@ -60,5 +60,17 @@ yargs(hideBin(process.argv))
       });
     },
     require("./commands/rewrite-path")
+  )
+  .command(
+    "canonical-server <openapi>",
+    "move the path from the servers block in to /paths",
+    (yargs) => {
+      yargs.positional("openapi", {
+        require: true,
+        describe: "the OpenAPI file to rewrite",
+        type: "string",
+      });
+    },
+    require("./commands/canonical-server")
   )
   .parse();
