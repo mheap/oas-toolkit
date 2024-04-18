@@ -4,6 +4,10 @@ const url = require("url");
 function run(oas) {
   oas = JSON.parse(JSON.stringify(oas)); // Prevent modification of original object
 
+  if (!oas.servers) {
+    return oas;
+  }
+
   // Extract the base path from servers
   const basePaths = uniqWith(
     oas.servers.map((server) => {

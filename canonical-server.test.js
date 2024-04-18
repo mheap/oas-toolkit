@@ -13,14 +13,18 @@ const oas = {
 };
 
 function getOas(urls) {
-  return {
-    servers: urls.map((url) => {
+  const o = {
+    paths: oas.paths,
+  };
+
+  if (urls.length > 0) {
+    o.servers = urls.map((url) => {
       return {
         url,
       };
-    }),
-    paths: oas.paths,
-  };
+    });
+  }
+  return o;
 }
 
 describe("#run", () => {
@@ -73,5 +77,15 @@ describe("#run", () => {
       { url: "https://api.example.com/" },
       { url: "https://stagingapi.example.com/" },
     ]);
+  });
+
+  it("ignores empty server blocks", () => {
+    const o = getOas([]);
+    expect(c.run(o)).toEqual({
+      paths: {
+        "/foo/hello": {},
+        "/foo/world": {},
+      },
+    });
   });
 });
