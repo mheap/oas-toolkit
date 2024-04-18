@@ -43,6 +43,22 @@ describe("#run", () => {
     });
   });
 
+  it("is idempotent", () => {
+    const o = getOas(["https://api.example.com/v1"]);
+
+    const updatedOas = c.run(o);
+    expect(updatedOas.paths).toEqual({
+      "/v1/foo/hello": {},
+      "/v1/foo/world": {},
+    });
+
+    // Run a second time
+    expect(c.run(updatedOas).paths).toEqual({
+      "/v1/foo/hello": {},
+      "/v1/foo/world": {},
+    });
+  });
+
   it("handles multiple servers", () => {
     const o = getOas([
       "https://api.example.com/v1",
