@@ -12,13 +12,20 @@ const oas = {
   },
 };
 
-function getOas(urls) {
+function getOas(urls, variables) {
   const o = {
     paths: oas.paths,
   };
 
   if (urls.length > 0) {
     o.servers = urls.map((url) => {
+      if (variables) {
+        return {
+          url,
+          variables,
+        };
+      }
+
       return {
         url,
       };
@@ -87,5 +94,34 @@ describe("#run", () => {
         "/foo/world": {},
       },
     });
+  });
+
+  it("ignores variable based urls", () => {
+    const vars = {
+      hostname: {
+        default: "localhost",
+        description: "Hostname for Kong's Admin API",
+      },
+      path: {
+        default: "/",
+        description: "Base path for Kong's Admin API",
+      },
+      port: {
+        default: "8001",
+        description: "Port for Kong's Admin API",
+      },
+      protocol: {
+        default: "http",
+        description: "Protocol for requests to Kong's Admin API",
+        enum: ["http", "https"],
+      },
+    };
+    const o = getOas(["{protocol}://{hostname}:{port}{path}"], vars);
+    expect(c.run(o).servers).toEqual([
+      {
+        url: "{protocol}://{hostname}:{port}{path}",
+        variables: vars,
+      },
+    ]);
   });
 });

@@ -11,6 +11,9 @@ function run(oas) {
   // Extract the base path from servers
   const basePaths = uniqWith(
     oas.servers.map((server) => {
+      if (server.variables) {
+        return null;
+      }
       const path = url.parse(server.url).pathname;
       if (path.slice(-1) === "/") {
         return path.slice(0, -1);
@@ -18,7 +21,7 @@ function run(oas) {
       return path;
     }),
     isEqual
-  );
+  ).filter((n) => n);
 
   if (basePaths.length > 1) {
     throw new Error(
@@ -36,6 +39,9 @@ function run(oas) {
 
   // Remove paths from servers
   oas.servers = oas.servers.map((server) => {
+    if (server.variables) {
+      return server;
+    }
     const u = url.parse(server.url);
     return {
       ...server,
