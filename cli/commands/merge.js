@@ -1,18 +1,20 @@
 const fs = require("fs");
 const yaml = require("js-yaml");
 
-module.exports = function ({ argv }) {
+module.exports = function (argv, b, c) {
   try {
-    const oasFiles = argv._.slice(1);
-    if (oasFiles.length < 2) {
-      return;
-    }
+    const oasFiles = argv.openapi;
 
     const merger = require("../../merger");
+    const canonical = require("../../canonical-server");
 
-    const oas = [];
+    let oas = [];
     for (let f of oasFiles) {
       oas.push(yaml.load(fs.readFileSync(f)));
+    }
+
+    if (argv.movePathToOperation) {
+      oas = oas.map((o) => canonical.run(o));
     }
 
     const combined = merger(oas, argv);
