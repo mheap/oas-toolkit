@@ -5,8 +5,14 @@ const { hideBin } = require("yargs/helpers");
 
 yargs(hideBin(process.argv))
   .command(
-    "merge <openapi> <...more.yaml>",
+    "merge <openapi...>",
     "merge the provided OpenAPI files",
+    (yargs) => {
+      yargs.option("move-path-to-operation", {
+        demandOption: false,
+        type: "boolean",
+      });
+    },
     require("./commands/merge")
   )
   .command(
