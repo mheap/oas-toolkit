@@ -1,7 +1,7 @@
 const expand = require("./expand-allof");
 
-it("merges allOf in to a single entity", () => {
-  const result = expand({
+it("merges allOf in to a single entity", async () => {
+  const result = await expand({
     components: {
       schemas: {
         User: {
@@ -46,8 +46,8 @@ it("merges allOf in to a single entity", () => {
   });
 });
 
-it("dereferences before merging allOf", () => {
-  const result = expand({
+it("dereferences before merging allOf", async () => {
+  const result = await expand({
     components: {
       schemas: {
         User: {
@@ -104,8 +104,8 @@ it("dereferences before merging allOf", () => {
   });
 });
 
-it("allows for required field overrides", () => {
-  const result = expand({
+it("allows for required field overrides", async () => {
+  const result = await expand({
     components: {
       schemas: {
         User: {
