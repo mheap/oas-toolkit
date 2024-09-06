@@ -17,6 +17,7 @@ module.exports = async function (oas, excludedPathMatcher) {
     dereference: {
       // We only want to dereference in oas.components.schemas
       excludedPathMatcher,
+      circular: "ignore",
     },
   });
 
