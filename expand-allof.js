@@ -22,8 +22,8 @@ module.exports = async function (oas, excludedPathMatcher) {
   });
 
   oas = traverse(oas).map(function (x) {
-    const path = this.path.join(".");
-    if (!path.startsWith("components")) {
+    const path = "#/" + this.path.join("/");
+    if (excludedPathMatcher(path)) {
       return;
     }
     if (!this.node || !this.node["allOf"]) {
