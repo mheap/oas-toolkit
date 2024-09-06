@@ -2,18 +2,23 @@ const traverse = require("traverse");
 const mergician = require("mergician");
 const { default: $RefParser } = require("@apidevtools/json-schema-ref-parser");
 
-module.exports = async function (oas) {
-  // We only want to dereference in oas.components.schemas
-  const componentsOnly = {
-    components: {
-      schemas: oas.components.schemas,
-    },
-  };
+module.exports = async function (oas, excludedPathMatcher) {
+  if (!excludedPathMatcher) {
+    excludedPathMatcher = function (path) {
+      return (
+        path != "#" &&
+        path != "#/components" &&
+        !path.startsWith("#/components/schemas")
+      );
+    };
+  }
 
-  oas.components.schemas = (
-    await $RefParser.dereference(componentsOnly)
-  ).components.schemas;
-  oas = traverse(oas).clone();
+  oas = await $RefParser.dereference(oas, {
+    dereference: {
+      // We only want to dereference in oas.components.schemas
+      excludedPathMatcher,
+    },
+  });
 
   oas = traverse(oas).map(function (x) {
     const path = this.path.join(".");
