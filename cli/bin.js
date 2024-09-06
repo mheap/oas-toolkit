@@ -81,7 +81,7 @@ yargs(hideBin(process.argv))
   )
   .command(
     "expand-allof <openapi>",
-    "Remove allOf from a schema by merging them in to a single entity",
+    "Remove allOf usage from components.schemas by merging them in to a single entity",
     (yargs) => {
       yargs.positional("openapi", {
         require: true,

@@ -1,14 +1,18 @@
 const traverse = require("traverse");
 const mergician = require("mergician");
-const { dereferenceSync } = require("dereference-json-schema");
+const { default: $RefParser } = require("@apidevtools/json-schema-ref-parser");
 
-module.exports = function (oas) {
-  // We only want to dereference in oas.components
+module.exports = async function (oas) {
+  // We only want to dereference in oas.components.schemas
   const componentsOnly = {
-    components: oas.components,
+    components: {
+      schemas: oas.components.schemas,
+    },
   };
 
-  oas.components = dereferenceSync(componentsOnly).components;
+  oas.components.schemas = (
+    await $RefParser.dereference(componentsOnly)
+  ).components.schemas;
   oas = traverse(oas).clone();
 
   oas = traverse(oas).map(function (x) {
