@@ -79,4 +79,16 @@ yargs(hideBin(process.argv))
     },
     require("./commands/canonical-server")
   )
+  .command(
+    "expand-allof <openapi>",
+    "Remove allOf from a schema by merging them in to a single entity",
+    (yargs) => {
+      yargs.positional("openapi", {
+        require: true,
+        describe: "the OpenAPI file to rewrite",
+        type: "string",
+      });
+    },
+    require("./commands/expand-allof")
+  )
   .parse();
