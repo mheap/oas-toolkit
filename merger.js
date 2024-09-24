@@ -1,24 +1,46 @@
-const mergician = require("mergician");
 const traverse = require("traverse");
 const isEqual = require("lodash.isequal");
 const uniqWith = require("lodash.uniqwith");
 
-function merge(objects, options) {
-  // Do the merge
-  let combinedSpec = {};
+const arrayBehaviour = {
+  openapi: "overwrite",
+  info: "overwrite",
+  servers: "overwrite",
+  externalDocs: "overwrite",
+};
 
-  // Values that should be overwritten
-  const overwriteMerge = mergician({ dedupArrays: true });
-  const overwriteSections = ["openapi", "info", "servers", "externalDocs"];
-  for (let section of overwriteSections) {
-    combinedSpec = mergeSection(combinedSpec, overwriteMerge, objects, section);
+function deepMergeWithSpread(obj1, obj2) {
+  const result = { ...obj1 };
+
+  for (let key in obj2) {
+    if (obj2.hasOwnProperty(key)) {
+      if (obj2[key] instanceof Array && obj2[key] instanceof Array) {
+        let mode = "append";
+        if (arrayBehaviour[key]) {
+          mode = arrayBehaviour[key];
+        }
+        if (mode === "append" && result[key]) {
+          result[key] = result[key].concat(obj2[key]);
+          result[key] = uniqWith(result[key], isEqual);
+        } else {
+          result[key] = obj2[key];
+        }
+      } else if (obj2[key] instanceof Object && obj1[key] instanceof Object) {
+        result[key] = deepMergeWithSpread(obj1[key], obj2[key]);
+      } else {
+        result[key] = obj2[key];
+      }
+    }
   }
 
-  // Values that should be appended
-  const appendMerge = mergician({ appendArrays: true, dedupArrays: true });
-  const appendSections = ["paths", "components", "security", "tags"];
-  for (let section of appendSections) {
-    combinedSpec = mergeSection(combinedSpec, appendMerge, objects, section);
+  return result;
+}
+
+function merge(objects) {
+  let combinedSpec = objects.shift();
+
+  for (let object of objects) {
+    combinedSpec = deepMergeWithSpread(combinedSpec, object);
   }
 
   // Values that should be unique
@@ -37,24 +59,6 @@ function merge(objects, options) {
   });
 
   return combinedSpec;
-}
-
-function mergeSection(spec, merger, objects, section) {
-  return Object.assign(
-    spec,
-    merger.apply(
-      null,
-      objects
-        .map((o) => {
-          const r = {};
-          if (o[section]) {
-            r[section] = o[section];
-          }
-          return r;
-        })
-        .filter(Boolean)
-    )
-  );
 }
 
 function ensureNoComponentColissions(objects, options) {
