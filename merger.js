@@ -124,11 +124,25 @@ function ensureNoPathColissions(objects) {
   }
 }
 
-function ensureListUniqueness(list, key, objects) {
+function ensureListUniqueness(list, keys, objects) {
   let all = [];
+
   for (let object of objects) {
     all = all.concat(object[list] || []);
   }
+
+  // Update the key based on overrides
+  const key = keys[0];
+  keys = keys.slice(1);
+  all = all.map((s) => {
+    if (keys.length) {
+      const newKey = keys.find((k) => s[k]);
+      if (newKey) {
+        s[key] = s[newKey];
+      }
+    }
+    return s;
+  });
 
   for (let c of all) {
     const d = all.filter((t) => {
@@ -157,7 +171,7 @@ function ensureListUniqueness(list, key, objects) {
 }
 
 function ensureNoTagColissions(objects) {
-  ensureListUniqueness("tags", "name", objects);
+  ensureListUniqueness("tags", ["name", "x-bundled-name", "x-name-override"], objects);
 }
 
 function ensureNoSecurityColissions(objects) {
