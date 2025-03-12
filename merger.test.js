@@ -20,6 +20,42 @@ describe("#ensureNoTagColissions", () => {
     ).toBe(undefined);
   });
 
+  it("throws with different descriptions", () => {
+    expect(() => {
+      ensureNoTagColissions([
+        { info: { title: "One" }, tags: [{ name: "Demo", description: "Demo in One" }] },
+        { info: { title: "Two" }, tags: [{ name: "Demo", description: "Demo in Two" }] },
+      ])
+    }).toThrow(new Error("Conflicting tags detected: Demo (One, Two)"))
+  });
+
+  it("respects overrides (x-bundled-name)", () => {
+    expect(
+      ensureNoTagColissions([
+        { info: { title: "One" }, tags: [{ name: "Demo", description: "Demo in One", "x-bundled-name": "Demo One" }] },
+        { info: { title: "Two" }, tags: [{ name: "Demo", description: "Demo in Two", "x-bundled-name": "Demo Two" }] },
+      ])
+    ).toBe(undefined);
+  });
+
+  it("respects overrides (x-name-override)", () => {
+    expect(
+      ensureNoTagColissions([
+        { info: { title: "One" }, tags: [{ name: "Demo", description: "Demo in One", "x-name-override": "Demo One" }] },
+        { info: { title: "Two" }, tags: [{ name: "Demo", description: "Demo in Two", "x-name-override": "Demo Two" }] },
+      ])
+    ).toBe(undefined);
+  });
+
+  it("throws when the override is the same", () => {
+    expect(() => {
+      ensureNoTagColissions([
+        { info: { title: "One" }, tags: [{ name: "Demo One", description: "Demo in One", "x-bundled-name": "Demo" }] },
+        { info: { title: "Two" }, tags: [{ name: "Demo Two", description: "Demo in Two", "x-bundled-name": "Demo" }] },
+      ])
+    }).toThrow(new Error("Conflicting tags detected: Demo (One, Two)"))
+  });
+
   it("throws when there is a field in one tag but not in another", () => {
     expect(() => {
       ensureNoTagColissions([
