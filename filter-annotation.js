@@ -7,6 +7,10 @@ function run(oas, opts = {}) {
   for (const p of Object.keys(oas.paths)) {
     const path = oas.paths[p];
     for (const verb in path) {
+      if (verb == "parameters") {
+        continue; // Skip parameters
+      }
+
       if (opts.keep?.length > 0) {
         for (const keep of opts.keep) {
           if (path[verb][keep] === undefined) {
