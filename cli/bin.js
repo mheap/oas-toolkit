@@ -21,6 +21,24 @@ yargs(hideBin(process.argv))
     require("./commands/check-conflicts")
   )
   .command(
+    "filter-annotation <openapi>",
+    "keep/remove all paths with a specific annotation",
+    (yargs) => {
+      yargs.option("keep", {
+        demandOption: false,
+      });
+      yargs.option("remove", {
+        demandOption: false
+      });
+      yargs.positional("openapi", {
+        require: true,
+        describe: "the OpenAPI file to rewrite",
+        type: "string",
+      });
+    },
+    require("./commands/filter-annotation")
+  )
+  .command(
     "remove-unused-components <openapi>",
     "remove unused components from the provided OpenAPI file",
     require("./commands/remove-unused-components")
