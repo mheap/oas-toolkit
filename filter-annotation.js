@@ -32,6 +32,12 @@ function run(oas, opts = {}) {
     if (Object.keys(path).length === 0) {
       delete oas.paths[p];
     }
+
+    // Also remove if only parameters remain
+    if (Object.keys(path).length === 1 && path['parameters']) {
+      delete oas.paths[p];
+    }
+
   }
 
   return oas;
