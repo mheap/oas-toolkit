@@ -45,4 +45,26 @@ describe("#run", () => {
   it("removes empty paths", () => {
     expect(c.run(oas, { keep: ["x-missing"] }).paths).toEqual({});
   });
+
+  it("removes empty paths with just parameters", () => {
+    const oas = {
+      servers: [
+        {
+          url: "https://api.example.com/v1",
+        },
+      ],
+      paths: {
+        "/foo/hello": {
+          parameters: [
+            - { "$ref": '#/components/parameters/Other' }
+          ],
+          get: {
+            "x-internal": true,
+            description: "Hello world endpoint",
+          }
+        },
+      },
+    };
+    expect(c.run(oas, { keep: ["x-missing"] }).paths).toEqual({});
+  });
 });
