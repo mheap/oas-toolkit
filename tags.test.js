@@ -60,6 +60,10 @@ describe("#tags", () => {
     expect(t.getDefinedTags(oas)).toEqual(["One", "Two", "Three"]);
   });
 
+  it("returns empty when tags is not defined", () => {
+    expect(t.getDefinedTags({})).toEqual([]);
+  });
+
   it("removes unused tags", () => {
     expect(t.removeUnusedTags(oas)).toEqual({
       info: { title: "One" },
