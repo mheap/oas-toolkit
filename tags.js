@@ -25,7 +25,7 @@ function getReferencedTags(oas) {
 }
 
 function getDefinedTags(oas) {
-  return oas.tags.map((t) => t.name);
+  return oas.tags ? oas.tags.map((t) => t.name) : [];
 }
 
 function getUnusedTags(all, referenced) {
