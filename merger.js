@@ -180,7 +180,7 @@ function ensureNoSecurityColissions(objects) {
     all = all.concat(object.security || []);
   }
 
-  all = all.map((s) => Object.entries(s)[0]);
+  all = all.map((s) => Object.entries(s)[0]).filter(Boolean);
 
   for (let c of all) {
     const d = all.filter((t) => {
