@@ -123,6 +123,15 @@ describe("#ensureNoSecurityColissions", () => {
       new Error("Conflicting security detected: petstore_auth (One, Two)")
     );
   });
+
+  it("supports missing security", () => {
+    expect(
+      ensureNoSecurityColissions([
+        { info: { title: "One" }, security: [{ appKey: [] }] },
+        { info: { title: "Two" }, security: [{}] },
+      ])
+    ).toBe(undefined);
+  });
 });
 
 describe("#ensureNoComponentColissions", () => {
