@@ -13,6 +13,7 @@ const oas = {
         description: "Hello world endpoint",
       },
       post: {
+        "x-other": true,
         description: "Create a hello world",
       },
     },
@@ -32,13 +33,34 @@ describe("#run", () => {
     });
   });
 
+  it("with multiple keep", () => {
+    expect(c.run(oas, { keep: ["x-internal", "x-other"] }).paths).toEqual({
+      "/foo/hello": {
+        get: {
+          "x-internal": true,
+          description: "Hello world endpoint",
+        },
+        post: {
+          "x-other": true,
+          description: "Create a hello world",
+        },
+      },
+    });
+  });
+
   it("with remove", () => {
     expect(c.run(oas, { remove: ["x-internal"] }).paths).toEqual({
       "/foo/hello": {
         post: {
+          "x-other": true,
           description: "Create a hello world",
         },
       },
+    });
+  });
+
+  it("with multiple remove", () => {
+    expect(c.run(oas, { remove: ["x-internal", "x-other"] }).paths).toEqual({
     });
   });
 
