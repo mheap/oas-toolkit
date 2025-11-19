@@ -363,6 +363,15 @@ describe("path collisions", () => {
     ).toBe(undefined);
   });
 
+  it.only("does not throw with overlapping paths and different servers", () => {
+    expect(
+      ensureNoPathColissions([
+        { info: { title: "One" }, servers: [{ url: "https://example.com/v1" }], paths: { "/foo": { get: {} } } },
+        { info: { title: "Two" }, servers: [{ url: "https://example.com/v2" }], paths: { "/foo": { get: {} } } },
+      ])
+    ).toBe(undefined);
+  });
+
   it("throws when a path has multiple implementations for a verb (static)", () => {
     expect(() => {
       ensureNoPathColissions([
