@@ -107,7 +107,7 @@ function ensureNoPathColissions(objects) {
       // Normalise the path
       const normalisedPath = path.replace(/\{\w+\}/g, "{VAR}");
       for (let verb in object.paths[path]) {
-        const k = `${verb.toUpperCase()} ${normalisedPath}`;
+        const k = `${verb.toUpperCase()} ${normalisedPath} @ ${object.servers ? object.servers.map(s => s.url).join(",") : "No Server"}`;
         actionList[k] = actionList[k] || [];
         actionList[k].push(object.info.title);
       }
