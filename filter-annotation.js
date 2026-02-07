@@ -12,25 +12,15 @@ function run(oas, opts = {}) {
       }
 
       if (opts.keep?.length > 0) {
-        let containsAny = false;
-        for (const keep of opts.keep) {
-          if (path[verb][keep] !== undefined) {
-            containsAny = true;
-          }
-        }
-        if (!containsAny) {
+        const hasAnyKeep = opts.keep.some((keep) => path[verb][keep] !== undefined);
+        if (!hasAnyKeep) {
           delete path[verb];
         }
       }
 
-      if (opts.remove?.length > 0) {
-        let containsAny = false;
-        for (const remove of opts.remove) {
-          if (path[verb][remove] !== undefined) {
-            containsAny = true;
-          }
-        }
-        if (containsAny) {
+      if (opts.remove?.length > 0 && path[verb]) {
+        const hasAnyRemove = opts.remove.some((remove) => path[verb][remove]);
+        if (hasAnyRemove) {
           delete path[verb];
         }
       }

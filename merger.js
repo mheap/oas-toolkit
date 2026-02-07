@@ -14,7 +14,7 @@ function deepMergeWithSpread(obj1, obj2) {
 
   for (let key in obj2) {
     if (obj2.hasOwnProperty(key)) {
-      if (obj2[key] instanceof Array && obj2[key] instanceof Array) {
+      if (obj2[key] instanceof Array && result[key] instanceof Array) {
         let mode = "append";
         if (arrayBehaviour[key]) {
           mode = arrayBehaviour[key];
@@ -37,10 +37,10 @@ function deepMergeWithSpread(obj1, obj2) {
 }
 
 function merge(objects) {
-  let combinedSpec = objects.shift();
+  let combinedSpec = objects[0];
 
-  for (let object of objects) {
-    combinedSpec = deepMergeWithSpread(combinedSpec, object);
+  for (let i = 1; i < objects.length; i++) {
+    combinedSpec = deepMergeWithSpread(combinedSpec, objects[i]);
   }
 
   // Values that should be unique
@@ -54,7 +54,7 @@ function merge(objects) {
   // Unique values that are at a non-deterministic path
   combinedSpec = traverse(combinedSpec).map(function () {
     if (["oneOf", "allOf", "anyOf"].includes(this.key)) {
-      this.node = uniqWith(this.node, isEqual);
+      this.update(uniqWith(this.node, isEqual));
     }
   });
 
@@ -68,7 +68,7 @@ function ensureNoComponentColissions(objects, options) {
   for (const object of objects) {
     if (object.components) {
       for (let type in object.components) {
-        for (item in object.components[type]) {
+        for (const item in object.components[type]) {
           componentList[`components.${type}.${item}`] =
             componentList[`components.${type}.${item}`] || [];
           componentList[`components.${type}.${item}`].push(object.info.title);
@@ -250,7 +250,7 @@ function ensureNoComplexObjectCollisions(objects) {
           return f.value;
         });
 
-        if (isEqual(...values)) {
+        if (values.every((v) => isEqual(v, values[0]))) {
           continue;
         }
       }
