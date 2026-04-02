@@ -11,7 +11,7 @@ function run(oas) {
   // Extract the base path from servers
   const basePaths = uniqWith(
     oas.servers.map((server) => {
-      if (server.variables) {
+      if (server.variables && Object.keys(server.variables).length > 0) {
         return null;
       }
       const path = url.parse(server.url).pathname;
@@ -43,7 +43,7 @@ function run(oas) {
 
   // Remove paths from servers
   oas.servers = oas.servers.map((server) => {
-    if (server.variables) {
+    if (server.variables && Object.keys(server.variables).length > 0) {
       return server;
     }
     const u = url.parse(server.url);

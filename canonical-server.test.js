@@ -140,4 +140,16 @@ describe("#run", () => {
       },
     ]);
   });
+
+  it("processes servers with empty variables object", () => {
+    const o = getOas(["https://api.example.com/v1"], {});
+    const result = c.run(o);
+    expect(result.paths).toEqual({
+      "/v1/foo/hello": {},
+      "/v1/foo/world": {},
+    });
+    expect(result.servers).toEqual([
+      { url: "https://api.example.com/", variables: {} },
+    ]);
+  });
 });
