@@ -196,6 +196,7 @@ function compareObjectBranches(branches, discriminator, totalBranchCount) {
     const schemaMatchesWherePresent = schemaFingerprints.length <= 1
       || schemaFingerprints.every((fingerprint) => fingerprint === schemaFingerprints[0]);
     const schemaVariants = buildSchemaVariants(presentSchemas);
+    const deFactoVariant = schemaVariants.find((variant) => variant.memberCount > totalBranchCount / 2) || null;
     const presentIn = presentSchemas.map((entry) => entry.label);
     const missingIn = branchSchemas.filter((entry) => !entry.present).map((entry) => entry.shortLabel);
     const requiredIn = branchSchemas.filter((entry) => entry.required).map((entry) => entry.label);
@@ -206,6 +207,8 @@ function compareObjectBranches(branches, discriminator, totalBranchCount) {
         path,
         summary: presentSchemas[0].schemaSummary,
         schema: presentSchemas[0].schema,
+        deFactoSchema: null,
+        deFactoMembers: [],
         requiredIn,
         optionalIn,
         branchSchemas,
@@ -231,8 +234,11 @@ function compareObjectBranches(branches, discriminator, totalBranchCount) {
         isDeFactoDefault: Boolean(
           category === "sharedWithSubset"
           && variant
-          && variant.memberCount > totalBranchCount / 2
+          && deFactoVariant
+          && variant.fingerprint === deFactoVariant.fingerprint
         ),
+        deFactoSchema: deFactoVariant ? deFactoVariant.schema : null,
+        deFactoMembers: deFactoVariant ? deFactoVariant.members : [],
         schemaVariantCount: schemaVariants.length,
         schema: entry.schema,
       });
@@ -1121,7 +1127,7 @@ function generateOneOfExplorerHtml(model) {
           }
 
           return ''
-            + '<details class="border border-slate-300 bg-white p-4">'
+            + '<details class="border border-slate-300 bg-white p-4"' + ((state.selectedPathOwnerLabel === branchView.label || state.selectedBranchLabel === branchView.label) ? ' open' : '') + '>'
             + '  <summary class="cursor-pointer list-none">'
             + '    <div class="flex flex-wrap items-start justify-between gap-2">'
             + '      <div class="text-base font-semibold text-slate-900">' + escapeHtml(branchView.label) + '</div>'
@@ -1275,26 +1281,26 @@ function generateOneOfExplorerHtml(model) {
           return getBranchShortLabel(selectedUsage, label);
         });
         var branchSchemas = selectedPathEntry.branchSchemas || [];
-        var allEntriesForPath = getPathEntriesForPath(selectedUsage, selectedPathEntry.path);
-        var defactoSchemaEntry = null;
         var summaryItems = [];
         var sharedWith = [];
         var missingFrom = selectedPathEntry.missingIn || [];
         var differentSchema = [];
-
-        if (branchSchemas.length) {
-          defactoSchemaEntry = selectedPathEntry;
-        } else {
-          defactoSchemaEntry = allEntriesForPath
-            .map(function (item) { return item.entry; })
-            .find(function (entry) { return entry.isDeFactoDefault; }) || null;
-        }
+        var deFactoMembers = (selectedPathEntry.deFactoMembers || []).map(function (label) {
+          return getBranchShortLabel(selectedUsage, label);
+        }).filter(function (label) {
+          return label !== ownerShortLabel;
+        });
 
         if (branchSchemas.length) {
           sharedWith = branchSchemas.filter(function (entry) {
             return entry.present;
           }).map(function (entry) {
             return entry.shortLabel || getBranchShortLabel(selectedUsage, entry.label);
+          });
+        } else if (deFactoMembers.length) {
+          sharedWith = deFactoMembers;
+          differentSchema = presentIn.filter(function (label) {
+            return label !== ownerShortLabel && sharedWith.indexOf(label) === -1;
           });
         } else {
           sharedWith = peers;
@@ -1324,7 +1330,10 @@ function generateOneOfExplorerHtml(model) {
           });
         }
 
-        var hasDefactoSchema = Boolean(defactoSchemaEntry);
+        var hasDefactoSchema = Boolean(
+          selectedPathEntry.deFactoSchema
+          && JSON.stringify(selectedPathEntry.deFactoSchema) !== JSON.stringify(selectedPathEntry.schema)
+        );
         var schemaView = state.selectedSchemaView;
         if (schemaView !== 'path' && schemaView !== 'defacto') {
           schemaView = hasDefactoSchema ? 'defacto' : 'path';
@@ -1333,8 +1342,8 @@ function generateOneOfExplorerHtml(model) {
           schemaView = 'path';
         }
 
-        var displayedSchema = schemaView === 'defacto' && defactoSchemaEntry
-          ? defactoSchemaEntry.schema
+        var displayedSchema = schemaView === 'defacto' && selectedPathEntry.deFactoSchema
+          ? selectedPathEntry.deFactoSchema
           : selectedPathEntry.schema;
         var displayedTitle = schemaView === 'defacto' ? 'Defacto schema' : 'Path schema';
 
@@ -1484,6 +1493,7 @@ function generateOneOfExplorerHtml(model) {
         if (pathButton) {
           state.selectedPath = pathButton.getAttribute('data-path');
           state.selectedPathOwnerLabel = pathButton.getAttribute('data-path-branch');
+          state.selectedBranchLabel = pathButton.getAttribute('data-path-branch');
           state.selectedSchemaView = null;
           writeHashState();
           render();
