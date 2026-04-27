@@ -120,40 +120,52 @@ function buildFieldComparison(branches) {
       objectBranchCount: objectBranches.length,
       skippedBranchLabels,
     },
-    commonFields: comparison.commonFields,
-    differingFields: comparison.differingFields,
+    sharedPaths: comparison.sharedPaths,
+    branchViews: comparison.branchViews,
+    nonSharedPathCount: comparison.nonSharedPathCount,
   };
 }
 
 function compareObjectBranches(branches) {
-  const fieldNames = new Set();
+  const flattenedBranches = branches.map((branch) => ({
+    label: branch.label,
+    paths: flattenSchemaPaths(branch.schema),
+  }));
+  const allPaths = new Set();
 
-  for (const branch of branches) {
-    for (const fieldName of Object.keys((branch.schema && branch.schema.properties) || {})) {
-      fieldNames.add(fieldName);
+  for (const branch of flattenedBranches) {
+    for (const path of Object.keys(branch.paths)) {
+      allPaths.add(path);
     }
   }
 
-  const commonFields = [];
-  const differingFields = [];
+  const sharedPaths = [];
+  const branchViews = branches.map((branch) => ({
+    label: branch.label,
+    onlyHere: [],
+    uniqueSchema: [],
+    sharedWithSubset: [],
+  }));
+  const branchViewMap = new Map(branchViews.map((branchView) => [branchView.label, branchView]));
 
-  for (const fieldName of Array.from(fieldNames).sort()) {
-    const branchSchemas = branches.map((branch) => {
-      const schema = branch.schema && branch.schema.properties
-        ? branch.schema.properties[fieldName]
-        : undefined;
+  for (const path of Array.from(allPaths).sort()) {
+    const branchSchemas = flattenedBranches.map((branch) => {
+      const entry = branch.paths[path];
 
       return {
         label: branch.label,
-        present: schema !== undefined,
-        required: branch.requiredSet.has(fieldName),
-        schemaSummary: schema ? summarizeSchema(schema) : null,
-        schema: schema ? sanitizeForJson(schema) : null,
-        _schemaValue: schema,
+        present: Boolean(entry),
+        required: entry ? entry.required : false,
+        schemaSummary: entry ? entry.summary : null,
+        schema: entry ? entry.schema : null,
       };
     });
 
     const presentSchemas = branchSchemas.filter((entry) => entry.present);
+    if (presentSchemas.length === 0) {
+      continue;
+    }
+
     const schemaFingerprints = presentSchemas.map((entry) => JSON.stringify(entry.schema));
     const schemaMatchesWherePresent = schemaFingerprints.length <= 1
       || schemaFingerprints.every((fingerprint) => fingerprint === schemaFingerprints[0]);
@@ -162,46 +174,96 @@ function compareObjectBranches(branches) {
     const missingIn = branchSchemas.filter((entry) => !entry.present).map((entry) => entry.label);
     const requiredIn = branchSchemas.filter((entry) => entry.required).map((entry) => entry.label);
     const optionalIn = branchSchemas.filter((entry) => entry.present && !entry.required).map((entry) => entry.label);
-    const nestedSchemas = presentSchemas.filter((entry) => isObjectLikeSchema(entry._schemaValue));
 
-    const field = {
-      name: fieldName,
-      summary: presentSchemas[0] ? presentSchemas[0].schemaSummary : null,
-      schemaMatchesWherePresent,
-      schemaVariantCount: schemaVariants.length,
-      schemaVariants,
-      presentIn,
-      missingIn,
-      requiredIn,
-      optionalIn,
-      differenceReasons: [
-        ...(missingIn.length ? ["missing"] : []),
-        ...(!schemaMatchesWherePresent ? ["schema"] : []),
-      ],
-      branchSchemas: branchSchemas.map(({ _schemaValue, ...entry }) => entry),
-      nestedComparison: nestedSchemas.length > 1 && nestedSchemas.length === presentSchemas.length
-        ? compareObjectBranches(
-            nestedSchemas.map((entry) => ({
-              label: entry.label,
-              schema: entry._schemaValue,
-              requiredSet: new Set(Array.isArray(entry._schemaValue.required) ? entry._schemaValue.required : []),
-              isObjectLike: true,
-            }))
-          )
-        : null,
-    };
+    if (presentSchemas.length === branches.length && schemaMatchesWherePresent) {
+      sharedPaths.push({
+        path,
+        summary: presentSchemas[0].schemaSummary,
+        requiredIn,
+        optionalIn,
+        branchSchemas,
+      });
+      continue;
+    }
 
-    if (missingIn.length === 0 && schemaMatchesWherePresent) {
-      commonFields.push(field);
-    } else {
-      differingFields.push(field);
+    for (const entry of presentSchemas) {
+      const variant = schemaVariants.find((candidate) => candidate.members.includes(entry.label));
+      const category = presentSchemas.length === 1
+        ? "onlyHere"
+        : variant && variant.memberCount === 1
+          ? "uniqueSchema"
+          : "sharedWithSubset";
+
+      branchViewMap.get(entry.label)[category].push({
+        path,
+        summary: entry.schemaSummary,
+        required: entry.required,
+        presentIn,
+        missingIn,
+        peers: variant ? variant.members.filter((member) => member !== entry.label) : [],
+        schemaVariantCount: schemaVariants.length,
+        schema: entry.schema,
+      });
     }
   }
 
+  for (const branchView of branchViews) {
+    branchView.onlyHere.sort(sortPathEntries);
+    branchView.uniqueSchema.sort(sortPathEntries);
+    branchView.sharedWithSubset.sort(sortPathEntries);
+    branchView.totalPathCount = branchView.onlyHere.length + branchView.uniqueSchema.length + branchView.sharedWithSubset.length;
+  }
+
   return {
-    commonFields,
-    differingFields,
+    sharedPaths: sharedPaths.sort(sortPathEntries),
+    branchViews,
+    nonSharedPathCount: Array.from(branchViews).reduce((total, branchView) => total + branchView.totalPathCount, 0),
   };
+}
+
+function flattenSchemaPaths(schema) {
+  const entries = {};
+
+  visitSchemaPaths(schema, "", false, [], entries);
+
+  return entries;
+}
+
+function visitSchemaPaths(schema, path, required, ancestors, entries) {
+  if (!schema || typeof schema !== "object" || Array.isArray(schema)) {
+    return;
+  }
+
+  if (path) {
+    entries[path] = {
+      required,
+      summary: summarizeSchema(schema),
+      schema: sanitizeForJson(schema),
+    };
+  }
+
+  if (ancestors.includes(schema)) {
+    return;
+  }
+
+  const nextAncestors = ancestors.concat(schema);
+
+  if (schema.properties) {
+    const requiredSet = new Set(Array.isArray(schema.required) ? schema.required : []);
+    for (const [propertyName, propertySchema] of Object.entries(schema.properties)) {
+      const propertyPath = path ? `${path}.${propertyName}` : propertyName;
+      visitSchemaPaths(propertySchema, propertyPath, requiredSet.has(propertyName), nextAncestors, entries);
+    }
+  }
+
+  if (schema.items) {
+    const itemsPath = path ? `${path}[]` : "[]";
+    visitSchemaPaths(schema.items, itemsPath, false, nextAncestors, entries);
+  }
+}
+
+function sortPathEntries(left, right) {
+  return left.path.localeCompare(right.path);
 }
 
 function buildSchemaVariants(presentSchemas) {
@@ -1015,6 +1077,33 @@ function generateOneOfExplorerHtml(model) {
       margin-bottom: 10px;
     }
 
+    .path-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .path-row {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--panel-alt);
+      padding: 12px 14px;
+    }
+
+    .path-name {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+
+    .path-meta {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
     details.raw {
       border-top: 1px solid var(--border);
       margin-top: 14px;
@@ -1214,196 +1303,99 @@ function generateOneOfExplorerHtml(model) {
         }).join("");
       }
 
-      function renderBranchCell(entry) {
-        if (!entry.present) {
-          return ''
-            + '<div class="field-branch missing">'
-            + '  <div class="field-branch-title">' + escapeHtml(entry.label) + '</div>'
-            + '  <div class="badge danger">Missing</div>'
-            + '</div>';
+      function renderPathEntry(pathEntry, mode) {
+        var badges = [];
+        if (pathEntry.required) {
+          badges.push('<span class="badge accent">Required</span>');
+        } else if (pathEntry.required === false) {
+          badges.push('<span class="badge">Optional</span>');
+        }
+        if (pathEntry.peers && pathEntry.peers.length) {
+          badges.push('<span class="badge success">Shared with ' + escapeHtml(pathEntry.peers.join(', ')) + '</span>');
+        }
+        if (pathEntry.missingIn && pathEntry.missingIn.length) {
+          badges.push('<span class="badge danger">Missing in ' + escapeHtml(pathEntry.missingIn.join(', ')) + '</span>');
         }
 
-        var requiredBadge = entry.required
-          ? '<span class="badge accent">Required</span>'
-          : '<span class="badge">Optional</span>';
-
         return ''
-          + '<div class="field-branch">'
-          + '  <div class="field-branch-title">' + escapeHtml(entry.label) + '</div>'
-          + '  <div class="chip-row">' + requiredBadge + '</div>'
-          + '  <div class="inline-summary">' + escapeHtml(summaryText(entry.schemaSummary)) + '</div>'
+          + '<div class="path-row">'
+          + '  <div class="path-name">' + escapeHtml(pathEntry.path) + '</div>'
+          + '  <div class="chip-row">' + badges.join('') + '</div>'
+          + '  <div class="path-meta">' + escapeHtml(summaryText(pathEntry.summary)) + '</div>'
           + '  <details class="raw">'
-          + '    <summary>Schema</summary>'
-          + '    <pre>' + formatJson(entry.schema) + '</pre>'
+          + '    <summary>' + escapeHtml(mode === 'shared' ? 'Shared path schema' : 'Path schema') + '</summary>'
+          + '    <pre>' + formatJson(pathEntry.schema || { summary: pathEntry.summary }) + '</pre>'
           + '  </details>'
           + '</div>';
       }
 
-      function renderCommonTable(fields, branchLabels) {
-        if (!fields.length) {
-          return '<div class="empty">No common fields at this comparison level.</div>';
+      function renderPathList(entries, mode, emptyText) {
+        if (!entries.length) {
+          return '<div class="empty">' + escapeHtml(emptyText) + '</div>';
         }
 
-        var header = branchLabels.map(function (label) {
-          return '<th>' + escapeHtml(label) + '</th>';
-        }).join("");
-
-        var rows = fields.map(function (field) {
-          var cells = field.branchSchemas.map(function (entry) {
-            var requiredBadge = entry.required
-              ? '<span class="badge accent">Required</span>'
-              : '<span class="badge">Optional</span>';
-
-            return ''
-              + '<td>'
-              + '  <div class="chip-row">' + requiredBadge + '</div>'
-              + '  <div class="inline-summary">' + escapeHtml(summaryText(entry.schemaSummary)) + '</div>'
-              + '</td>';
-          }).join("");
-
-          return ''
-            + '<tr>'
-            + '  <td>'
-            + '    <div class="field-name">' + escapeHtml(field.name) + '</div>'
-            + '    <div class="field-summary">' + escapeHtml(summaryText(field.summary)) + '</div>'
-            + '  </td>'
-            +    cells
-            + '</tr>';
-        }).join("");
-
-        return ''
-          + '<div class="table-wrap">'
-          + '  <table>'
-          + '    <thead><tr><th>Field</th>' + header + '</tr></thead>'
-          + '    <tbody>' + rows + '</tbody>'
-          + '  </table>'
-          + '</div>';
+        return '<div class="path-list">' + entries.map(function (entry) {
+          return renderPathEntry(entry, mode);
+        }).join('') + '</div>';
       }
 
-      function renderVariantSummary(variant) {
-        var title = variant.memberCount === 1
-          ? 'Unique to ' + variant.members[0]
-          : 'Shared by ' + variant.memberCount + ' branches: ' + variant.members.join(', ');
-        var requiredBadge = variant.requiredIn.length === variant.memberCount
-          ? '<span class="badge accent">Required in all</span>'
-          : variant.requiredIn.length
-            ? '<span class="badge">Required in ' + variant.requiredIn.join(', ') + '</span>'
-            : '<span class="badge">Optional in all</span>';
-
-        return ''
-          + '<div class="variant-card">'
-          + '  <div class="variant-title">' + escapeHtml(title) + '</div>'
-          + '  <div class="chip-row">'
-          + '    <span class="badge success">' + escapeHtml(summaryText(variant.summary)) + '</span>'
-          +      requiredBadge
-          + '  </div>'
-          + '  <div class="variant-subtle">Members: ' + escapeHtml(variant.members.join(', ')) + '</div>'
-          + '  <details class="raw">'
-          + '    <summary>Shared schema</summary>'
-          + '    <pre>' + formatJson(variant.schema) + '</pre>'
-          + '  </details>'
-          + '</div>';
-      }
-
-      function getDisplayedBranchSchemas(field) {
+      function getDisplayedEntries(entries) {
         if (!state.uniqueVariantsOnly) {
-          return field.branchSchemas;
+          return entries;
         }
 
-        var included = [];
         var seen = new Set();
-
-        field.branchSchemas.forEach(function (entry) {
-          if (!entry.present) {
-            included.push(entry);
-            return;
+        return entries.filter(function (entry) {
+          var key = entry.path + '|' + JSON.stringify(entry.schema || entry.summary || null);
+          if (seen.has(key)) {
+            return false;
           }
-
-          var variantKey = JSON.stringify(entry.schema);
-          if (seen.has(variantKey)) {
-            return;
-          }
-
-          seen.add(variantKey);
-          included.push(entry);
+          seen.add(key);
+          return true;
         });
-
-        return included;
       }
 
-      function renderNestedComparison(nestedComparison, depth) {
-        if (!nestedComparison) {
-          return "";
-        }
-
-        return ''
-          + '<div class="nested" data-depth="' + depth + '">'
-          + '  <div class="section-note">Nested comparison</div>'
-          + renderComparisonSections(nestedComparison, depth + 1, false)
-          + '</div>';
-      }
-
-      function renderDifferingFields(fields, branchLabels, depth, compactMode) {
-        if (!fields.length) {
-          return '<div class="empty">No differing fields at this comparison level.</div>';
-        }
-
-        return fields.map(function (field) {
-          var displayedBranchSchemas = getDisplayedBranchSchemas(field);
-          var variantSummary = field.schemaVariantCount > 1
-            ? field.schemaVariantCount + ' schema variants across ' + field.presentIn.length + ' branches'
-            : '';
-          var reasonChips = field.differenceReasons.map(function (reason) {
-            var label = reason === "schema" ? "schema mismatch" : "missing in branches";
-            return '<span class="chip danger">' + escapeHtml(label) + '</span>';
-          }).join("");
-
+      function renderBranchSpecificSections(branchViews) {
+        return branchViews.map(function (branchView) {
           return ''
-            + '<details class="field-card" open>'
-            + '  <summary>'
-            + '    <div>'
-            + '      <div class="field-name">' + escapeHtml(field.name) + '</div>'
-            + '      <div class="field-summary">' + escapeHtml(summaryText(field.summary)) + '</div>'
-            +        (variantSummary ? '<div class="variant-subtle">' + escapeHtml(variantSummary) + '</div>' : '')
-            + '    </div>'
-            + '    <div class="chip-row">' + reasonChips + '</div>'
-            + '  </summary>'
-            + '  <div class="field-card-body">'
-            +      (field.schemaVariants && field.schemaVariants.length
-                    ? '<div class="variant-list">' + field.schemaVariants.map(renderVariantSummary).join("") + '</div>'
-                    : '')
-            + '    <div class="branch-grid side-by-side" style="--branch-count: ' + branchLabels.length + ';">'
-            +        displayedBranchSchemas.map(renderBranchCell).join("")
-            + '    </div>'
-            +      renderNestedComparison(field.nestedComparison, depth)
+            + '<div class="section">'
+            + '  <div class="section-header">'
+            + '    <div class="section-title">' + escapeHtml(branchView.label) + '</div>'
+            + '    <div class="stats"><span class="chip danger">' + branchView.totalPathCount + ' paths</span></div>'
             + '  </div>'
-            + '</details>';
-        }).join("");
-      }
-
-      function renderComparisonSections(comparison, depth, compactMode) {
-        var branchLabels = [];
-        if (comparison.commonFields.length) {
-          branchLabels = comparison.commonFields[0].branchSchemas.map(function (entry) { return entry.label; });
-        } else if (comparison.differingFields.length) {
-          branchLabels = comparison.differingFields[0].branchSchemas.map(function (entry) { return entry.label; });
-        }
-
-        return ''
-          + '<div class="section">'
-          + '  <div class="section-header">'
-          + '    <div class="section-title">Common fields</div>'
-          + '    <div class="stats"><span class="chip success">' + comparison.commonFields.length + ' fields</span></div>'
-          + '  </div>'
-          +      renderCommonTable(comparison.commonFields, branchLabels)
-          + '</div>'
-          + '<div class="section">'
-          + '  <div class="section-header">'
-          + '    <div class="section-title">Different fields</div>'
-          + '    <div class="stats"><span class="chip danger">' + comparison.differingFields.length + ' fields</span></div>'
-          + '  </div>'
-          +      renderDifferingFields(comparison.differingFields, branchLabels, depth, compactMode)
-          + '</div>';
+            + '  <div class="section-note">Flattened branch-specific paths using dot notation and [] for arrays.</div>'
+            + '  <div class="field-card">'
+            + '    <summary>'
+            + '      <div>'
+            + '        <div class="field-name">Only in ' + escapeHtml(branchView.label) + '</div>'
+            + '      </div>'
+            + '    </summary>'
+            + '    <div class="field-card-body">'
+            +        renderPathList(getDisplayedEntries(branchView.onlyHere), 'branch', 'No paths exist only in this branch.')
+            + '    </div>'
+            + '  </div>'
+            + '  <div class="field-card">'
+            + '    <summary>'
+            + '      <div>'
+            + '        <div class="field-name">Different schema only in ' + escapeHtml(branchView.label) + '</div>'
+            + '      </div>'
+            + '    </summary>'
+            + '    <div class="field-card-body">'
+            +        renderPathList(getDisplayedEntries(branchView.uniqueSchema), 'branch', 'No uniquely-shaped paths in this branch.')
+            + '    </div>'
+            + '  </div>'
+            + '  <div class="field-card">'
+            + '    <summary>'
+            + '      <div>'
+            + '        <div class="field-name">Shared with subset</div>'
+            + '      </div>'
+            + '    </summary>'
+            + '    <div class="field-card-body">'
+            +        renderPathList(getDisplayedEntries(branchView.sharedWithSubset), 'branch', 'No subset-shared paths for this branch.')
+            + '    </div>'
+            + '  </div>'
+            + '</div>';
+        }).join('');
       }
 
       function renderBranches(selectedUsage, compactMode) {
@@ -1472,9 +1464,9 @@ function generateOneOfExplorerHtml(model) {
         var context = selectedUsage.context || {};
         var compactMode = isCompactMode(selectedUsage);
         var comparisonTitle = selectedUsage.fieldComparison.scope.skippedBranchLabels.length
-          ? 'Field comparison covers ' + selectedUsage.fieldComparison.scope.objectBranchCount + ' object-like branches. '
+          ? 'Flattened path comparison covers ' + selectedUsage.fieldComparison.scope.objectBranchCount + ' object-like branches. '
               + selectedUsage.fieldComparison.scope.skippedBranchLabels.length + ' branch' + (selectedUsage.fieldComparison.scope.skippedBranchLabels.length === 1 ? ' is' : 'es are') + ' shown as raw schema summaries.'
-          : 'Field comparison covers every branch in this oneOf.';
+          : 'Flattened path comparison covers every branch in this oneOf.';
 
         var discriminator = selectedUsage.discriminator && selectedUsage.discriminator.propertyName
           ? '<span class="chip accent">discriminator: ' + escapeHtml(selectedUsage.discriminator.propertyName) + '</span>'
@@ -1503,12 +1495,18 @@ function generateOneOfExplorerHtml(model) {
           + '      </div>'
           + '      <p class="section-note">' + escapeHtml(comparisonTitle) + '</p>'
           + '      <div class="chip-row">'
-          + '        <span class="chip success">' + selectedUsage.fieldComparison.commonFields.length + ' common fields</span>'
-          + '        <span class="chip danger">' + selectedUsage.fieldComparison.differingFields.length + ' different fields</span>'
+          + '        <span class="chip success">' + selectedUsage.fieldComparison.sharedPaths.length + ' shared paths</span>'
+          + '        <span class="chip danger">' + selectedUsage.fieldComparison.nonSharedPathCount + ' branch-specific paths</span>'
           + '        <span class="chip">' + (state.uniqueVariantsOnly ? 'unique variants only' : 'all branches') + '</span>'
           + '      </div>'
           + '    </div>'
-          +      renderComparisonSections(selectedUsage.fieldComparison, 0, compactMode)
+          + '    <div class="section">'
+          + '      <div class="section-header">'
+          + '        <div class="section-title">Shared across all branches</div>'
+          + '      </div>'
+          +        renderPathList(selectedUsage.fieldComparison.sharedPaths, 'shared', 'No shared flattened paths across every branch.')
+          + '    </div>'
+          +      renderBranchSpecificSections(selectedUsage.fieldComparison.branchViews)
           + '    <div class="section">'
           + '      <div class="section-header">'
           + '        <div class="section-title">Branches</div>'
