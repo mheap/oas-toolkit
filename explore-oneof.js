@@ -162,6 +162,7 @@ function compareObjectBranches(branches, discriminator, totalBranchCount) {
   const sharedPaths = [];
   const branchViews = branches.map((branch) => ({
     label: branch.label,
+    shortLabel: branch.shortLabel,
     onlyHere: [],
     uniqueSchema: [],
     sharedWithSubset: [],
@@ -1083,18 +1084,19 @@ function generateOneOfExplorerHtml(model) {
           }).length;
 
           return ''
-            + '<section class="border border-slate-300 bg-white p-4">'
-            + '  <div class="mb-3 flex flex-wrap items-start justify-between gap-2">'
-            + '    <div>'
-            + '      <div class="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Branch</div>'
-            + '      <div class="mt-1 text-base font-semibold text-slate-900">' + escapeHtml(branchView.label) + '</div>'
+            + '<details class="border border-slate-300 bg-white p-4">'
+            + '  <summary class="cursor-pointer list-none">'
+            + '    <div class="flex flex-wrap items-start justify-between gap-2">'
+            + '      <div class="text-base font-semibold text-slate-900">' + escapeHtml(branchView.label) + '</div>'
+            + '      <div class="flex flex-wrap gap-1">' + chip(branchView.totalPathCount + ' paths', 'danger') + (deFactoDefaults ? chip(deFactoDefaults + ' Defacto default', 'warning') : '') + '</div>'
             + '    </div>'
-            + '    <div class="flex flex-wrap gap-1">' + chip(branchView.totalPathCount + ' paths', 'danger') + (deFactoDefaults ? chip(deFactoDefaults + ' Defacto default', 'warning') : '') + '</div>'
+            + '  </summary>'
+            + '  <div class="mt-4 grid gap-3">'
+            +        renderBranchBucket('Only in ' + branchView.shortLabel, onlyHere, 'No ' + branchView.shortLabel + ' only properties')
+            +        renderBranchBucket('Different schema only in ' + branchView.shortLabel, uniqueSchema, 'No properties with a different schema')
+            +        renderBranchBucket('Shared with subset', sharedWithSubset, 'No subset-shared paths for this branch.')
             + '  </div>'
-            +      renderBranchBucket('Only in ' + branchView.label, onlyHere, 'No ' + branchView.label + ' only properties')
-            +      renderBranchBucket('Different schema only in ' + branchView.label, uniqueSchema, 'No properties with a different schema')
-            +      renderBranchBucket('Shared with subset', sharedWithSubset, 'No subset-shared paths for this branch.')
-            + '</section>';
+            + '</details>';
         }).join('');
       }
 
