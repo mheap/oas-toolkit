@@ -333,14 +333,16 @@ function isDescendantPath(path, ancestorPath) {
 
 function normalizeSchemaForComparison(path, schema, discriminator) {
   if (!discriminator || !discriminator.propertyName || !schema || typeof schema !== "object") {
-    return schema;
+    return normalizeObjectContainerSchema(schema);
   }
+
+  const normalizedSchema = normalizeObjectContainerSchema(schema);
 
   if (path !== discriminator.propertyName) {
-    return schema;
+    return normalizedSchema;
   }
 
-  const normalized = { ...schema };
+  const normalized = { ...normalizedSchema };
 
   if (Object.prototype.hasOwnProperty.call(normalized, "const")) {
     normalized.const = "__discriminator__";
@@ -351,6 +353,25 @@ function normalizeSchemaForComparison(path, schema, discriminator) {
   }
 
   return normalized;
+}
+
+function normalizeObjectContainerSchema(schema) {
+  if (!schema || typeof schema !== "object" || Array.isArray(schema)) {
+    return schema;
+  }
+
+  if (!(schema.type === "object" || schema.properties)) {
+    return schema;
+  }
+
+  return {
+    type: schema.type || "object",
+    additionalProperties: Object.prototype.hasOwnProperty.call(schema, "additionalProperties")
+      ? schema.additionalProperties
+      : undefined,
+    required: Array.isArray(schema.required) ? schema.required.slice().sort() : [],
+    propertyNames: Object.keys(schema.properties || {}).sort(),
+  };
 }
 
 function buildSchemaVariants(presentSchemas) {
@@ -990,10 +1011,7 @@ function generateOneOfExplorerHtml(model) {
         } else if (pathEntry.required === false) {
           badges.push(chip('Optional', 'neutral'));
         }
-        if (!pathEntry.isDeFactoDefault && pathEntry.peers && pathEntry.peers.length) {
-          badges.push(chip('Shared with ' + pathEntry.peers.join(', '), 'success'));
-        }
-        if (pathEntry.missingIn && pathEntry.missingIn.length) {
+        if (mode !== 'branch-only' && pathEntry.missingIn && pathEntry.missingIn.length) {
           badges.push(chip('Missing in ' + pathEntry.missingIn.join(', '), 'danger'));
         }
 
@@ -1062,15 +1080,15 @@ function generateOneOfExplorerHtml(model) {
         });
       }
 
-      function renderBranchBucket(title, entries, emptyText) {
+      function renderBranchBucket(title, entries, emptyText, mode) {
         if (!entries.length) {
-          return '<div class="empty-inline border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-500"><strong class="text-slate-700">' + escapeHtml(title) + ':</strong> ' + escapeHtml(emptyText) + '</div>';
+          return '';
         }
 
         return ''
           + '<section class="border border-slate-300 bg-slate-50">'
           + '  <div class="border-b border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-700">' + escapeHtml(title) + '</div>'
-          + '  <div class="grid gap-2 p-3">' + renderPathList(entries, 'branch', emptyText) + '</div>'
+          + '  <div class="grid gap-2 p-3">' + renderPathList(entries, mode || 'branch', emptyText) + '</div>'
           + '</section>';
       }
 
@@ -1082,6 +1100,15 @@ function generateOneOfExplorerHtml(model) {
           var deFactoDefaults = sharedWithSubset.filter(function (entry) {
             return entry.isDeFactoDefault;
           }).length;
+          var emptyMessages = [];
+
+          if (!onlyHere.length) {
+            emptyMessages.push('No ' + branchView.shortLabel + ' only properties');
+          }
+
+          if (!uniqueSchema.length) {
+            emptyMessages.push('No properties with a different schema');
+          }
 
           return ''
             + '<details class="border border-slate-300 bg-white p-4">'
@@ -1092,9 +1119,12 @@ function generateOneOfExplorerHtml(model) {
             + '    </div>'
             + '  </summary>'
             + '  <div class="mt-4 grid gap-3">'
-            +        renderBranchBucket('Only in ' + branchView.shortLabel, onlyHere, 'No ' + branchView.shortLabel + ' only properties')
-            +        renderBranchBucket('Different schema only in ' + branchView.shortLabel, uniqueSchema, 'No properties with a different schema')
-            +        renderBranchBucket('Shared with subset', sharedWithSubset, 'No subset-shared paths for this branch.')
+            +      (emptyMessages.length ? '<ul class="ml-5 list-disc text-sm text-slate-500">' + emptyMessages.map(function (message) {
+                     return '<li>' + escapeHtml(message) + '</li>';
+                   }).join('') + '</ul>' : '')
+            +        renderBranchBucket('Only in ' + branchView.shortLabel, onlyHere, 'No ' + branchView.shortLabel + ' only properties', 'branch-only')
+            +        renderBranchBucket('Different schema only in ' + branchView.shortLabel, uniqueSchema, 'No properties with a different schema', 'branch-different')
+            +        renderBranchBucket('Shared with subset', sharedWithSubset, 'No subset-shared paths for this branch.', 'branch-subset')
             + '  </div>'
             + '</details>';
         }).join('');
@@ -1131,6 +1161,11 @@ function generateOneOfExplorerHtml(model) {
             schema: implementation ? implementation.schema : null,
             present: Boolean(implementation),
             required: implementation ? implementation.required : false,
+            peers: implementation
+              ? implementation.peers || (sharedEntry ? selectedUsage.branches
+                .filter(function (candidate) { return candidate.label !== branch.label; })
+                .map(function (candidate) { return candidate.shortLabel || candidate.label; }) : [])
+              : [],
           });
         });
 
@@ -1180,9 +1215,10 @@ function generateOneOfExplorerHtml(model) {
                      + '  <div class="mt-2 flex flex-wrap gap-1">'
                      +      (implementation.present ? chip(summaryText(implementation.summary), 'success') : chip('Missing', 'danger'))
                      +      (implementation.required ? chip('Required', 'accent') : '')
+                     +      (implementation.peers && implementation.peers.length ? chip('Shared with ' + implementation.peers.join(', '), 'success') : '')
                      + '  </div>'
                      +  (implementation.ref ? '<div class="mt-2 text-[12px] leading-5 text-slate-500">Schema: ' + linkButton(implementation.ref, 'data-branch-link="' + escapeHtml(implementation.label) + '"') + '</div>' : '')
-                     + '  <details class="mt-3 border-t border-slate-300 pt-3" open>'
+                     + '  <details class="mt-3 border-t border-slate-300 pt-3">'
                      + '    <summary class="cursor-pointer text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Path schema</summary>'
                      + '    <pre class="mt-2 overflow-auto border border-slate-300 bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">' + formatJson(implementation.schema || { missing: true }) + '</pre>'
                      + '  </details>'

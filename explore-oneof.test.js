@@ -245,6 +245,78 @@ describe("explore-oneof", () => {
     expect(sharedSubsetPaths).not.toContain("config.auth.token");
   });
 
+  it("does not mark parent object paths different when only nested schemas differ", async () => {
+    const model = await buildOneOfExplorerModel({
+      openapi: "3.0.0",
+      info: {
+        title: "Nested Difference API",
+      },
+      components: {
+        schemas: {
+          Choice: {
+            oneOf: [
+              { $ref: "#/components/schemas/Anthropic" },
+              { $ref: "#/components/schemas/Bedrock" },
+            ],
+          },
+          AuthBasic: {
+            type: "object",
+            properties: {
+              token: { type: "string" },
+            },
+          },
+          AuthAws: {
+            type: "object",
+            properties: {
+              access_key_id: { type: "string" },
+            },
+          },
+          Anthropic: {
+            type: "object",
+            properties: {
+              config: {
+                type: "object",
+                required: ["auth"],
+                properties: {
+                  auth: {
+                    $ref: "#/components/schemas/AuthBasic",
+                  },
+                },
+              },
+            },
+          },
+          Bedrock: {
+            type: "object",
+            properties: {
+              config: {
+                type: "object",
+                required: ["auth"],
+                properties: {
+                  auth: {
+                    oneOf: [
+                      { $ref: "#/components/schemas/AuthBasic" },
+                      { $ref: "#/components/schemas/AuthAws" },
+                    ],
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const usage = model.oneOfUsages.find((entry) => entry.path === "components.schemas.Choice");
+    const anthropicView = usage.fieldComparison.branchViews.find((branch) => branch.label === "Anthropic");
+    const bedrockView = usage.fieldComparison.branchViews.find((branch) => branch.label === "Bedrock");
+
+    expect(usage.fieldComparison.sharedPaths.map((entry) => entry.path)).toContain("config");
+    expect(anthropicView.uniqueSchema.map((entry) => entry.path)).not.toContain("config");
+    expect(bedrockView.uniqueSchema.map((entry) => entry.path)).not.toContain("config");
+    expect(anthropicView.uniqueSchema.map((entry) => entry.path)).toContain("config.auth");
+    expect(bedrockView.uniqueSchema.map((entry) => entry.path)).toContain("config.auth");
+  });
+
   it("uses heuristic branch labels and disambiguates duplicates", async () => {
     const model = await buildOneOfExplorerModel({
       openapi: "3.0.0",
