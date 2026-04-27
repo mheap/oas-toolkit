@@ -2,26 +2,14 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const http = require("http");
-const yaml = require("js-yaml");
 const open = require("open");
+
+const { loadOpenApiDocument } = require("../lib/load-openapi");
 
 module.exports = function (argv) {
   try {
-    let openapiPath = argv.openapi;
-
-    if (openapiPath.startsWith("~/")) {
-      openapiPath = require("os").homedir() + openapiPath.slice(1);
-    }
     const outputPath = argv.output;
-
-    let spec;
-    const fileContent = fs.readFileSync(openapiPath, "utf8");
-
-    if (openapiPath.endsWith(".json")) {
-      spec = JSON.parse(fileContent);
-    } else {
-      spec = yaml.load(fileContent);
-    }
+    const { spec } = loadOpenApiDocument(argv.openapi);
 
     const specString = JSON.stringify(spec);
 

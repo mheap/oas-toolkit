@@ -110,6 +110,29 @@ yargs(hideBin(process.argv))
     require("./commands/expand-allof")
   )
   .command(
+    "explore-oneof <openapi>",
+    "explore oneOf usage in a browser",
+    (yargs) => {
+      yargs.option("output", {
+        demandOption: false,
+        describe: "output file path",
+        type: "string",
+      });
+      yargs.option("open", {
+        demandOption: false,
+        default: true,
+        type: "boolean",
+        describe: "open in browser",
+      });
+      yargs.positional("openapi", {
+        require: true,
+        describe: "the OpenAPI file to explore",
+        type: "string",
+      });
+    },
+    require("./commands/explore-oneof")
+  )
+  .command(
     "preview <openapi>",
     "preview the OpenAPI spec in a browser",
     (yargs) => {
