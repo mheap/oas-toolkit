@@ -617,12 +617,12 @@ describe("explore-oneof", () => {
     expect(html).toContain("pathOwner");
     expect(html).toContain("data-path-modal");
     expect(html).toContain("data-close-path-modal");
-    expect(html).toContain("data-schema-view");
     expect(html).toContain("Defacto schema");
     expect(html).toContain("Path schema");
     expect(html).toContain("w-[95vw]");
     expect(html).toContain("h-[95vh]");
     expect(html).toContain("min-h-[60vh]");
+    expect(html).toContain("xl:grid-cols-2");
     expect(html).not.toContain("Raw oneOf definition");
   });
 });

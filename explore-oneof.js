@@ -846,7 +846,6 @@ function generateOneOfExplorerHtml(model) {
         uniqueVariantsOnly: false,
         selectedPath: null,
         selectedPathOwnerLabel: null,
-        selectedSchemaView: null,
         selectedBranchLabel: null
       };
 
@@ -950,7 +949,6 @@ function generateOneOfExplorerHtml(model) {
         var variants = params.get("variants");
         var selectedPath = params.get("path");
         var selectedPathOwnerLabel = params.get("pathOwner");
-        var selectedSchemaView = params.get("schemaView");
         var selectedBranchLabel = params.get("branch");
         if (pointer) state.selectedPointer = pointer;
         if (layout === "accordion" || layout === "side-by-side") state.layout = layout;
@@ -959,7 +957,6 @@ function generateOneOfExplorerHtml(model) {
         state.uniqueVariantsOnly = variants === "unique";
         state.selectedPath = selectedPath;
         state.selectedPathOwnerLabel = selectedPathOwnerLabel;
-        state.selectedSchemaView = selectedSchemaView;
         state.selectedBranchLabel = selectedBranchLabel;
       }
 
@@ -971,7 +968,6 @@ function generateOneOfExplorerHtml(model) {
         if (state.uniqueVariantsOnly) params.set("variants", "unique");
         if (state.selectedPath) params.set("path", state.selectedPath);
         if (state.selectedPathOwnerLabel) params.set("pathOwner", state.selectedPathOwnerLabel);
-        if (state.selectedSchemaView) params.set("schemaView", state.selectedSchemaView);
         if (state.selectedBranchLabel) params.set("branch", state.selectedBranchLabel);
         var nextHash = params.toString();
         if (window.location.hash.slice(1) !== nextHash) {
@@ -1334,18 +1330,7 @@ function generateOneOfExplorerHtml(model) {
           selectedPathEntry.deFactoSchema
           && JSON.stringify(selectedPathEntry.deFactoSchema) !== JSON.stringify(selectedPathEntry.schema)
         );
-        var schemaView = state.selectedSchemaView;
-        if (schemaView !== 'path' && schemaView !== 'defacto') {
-          schemaView = hasDefactoSchema ? 'defacto' : 'path';
-        }
-        if (schemaView === 'defacto' && !hasDefactoSchema) {
-          schemaView = 'path';
-        }
-
-        var displayedSchema = schemaView === 'defacto' && selectedPathEntry.deFactoSchema
-          ? selectedPathEntry.deFactoSchema
-          : selectedPathEntry.schema;
-        var displayedTitle = schemaView === 'defacto' ? 'Defacto schema' : 'Path schema';
+        var schemaColumns = hasDefactoSchema ? 'grid-cols-1 xl:grid-cols-2' : 'grid-cols-1';
 
         return ''
           + '<div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-500/60 p-4" data-path-modal="true">'
@@ -1363,17 +1348,22 @@ function generateOneOfExplorerHtml(model) {
                    return '<li><span class="font-medium text-slate-900">' + escapeHtml(item.label) + ':</span> ' + escapeHtml(item.values.join(', ')) + '</li>';
                  }).join('')
           + '        </ul>'
-          + '        <section class="flex min-h-[60vh] min-w-0 flex-1 flex-col border border-slate-300 bg-white">'
-          + '          <div class="flex flex-wrap items-center gap-2 border-b border-slate-300 px-4 py-3">'
+          + '        <section class="grid min-h-[60vh] min-w-0 flex-1 ' + schemaColumns + ' gap-4">'
           +               (hasDefactoSchema
-                            ? outlineButton('Defacto schema', schemaView === 'defacto', 'data-schema-view="defacto"')
+                            ? ''
+                              + '<div class="flex min-h-0 min-w-0 flex-col border border-slate-300 bg-white">'
+                              + '  <div class="border-b border-slate-300 px-4 py-3 text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Defacto schema</div>'
+                              + '  <div class="min-h-0 flex-1 p-4">'
+                              + '    <pre class="h-full overflow-auto border border-slate-300 bg-slate-950 p-4 text-[11px] leading-5 text-slate-100">' + formatJson(selectedPathEntry.deFactoSchema) + '</pre>'
+                              + '  </div>'
+                              + '</div>'
                             : '')
-          +               outlineButton('Path schema', schemaView === 'path', 'data-schema-view="path"')
+          +          '<div class="flex min-h-0 min-w-0 flex-col border border-slate-300 bg-white">'
+          + '          <div class="border-b border-slate-300 px-4 py-3 text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Path schema</div>'
+          + '          <div class="min-h-0 flex-1 p-4">'
+          + '            <pre class="h-full overflow-auto border border-slate-300 bg-slate-950 p-4 text-[11px] leading-5 text-slate-100">' + formatJson(selectedPathEntry.schema || { summary: selectedPathEntry.summary }) + '</pre>'
           + '          </div>'
-          + '          <div class="px-4 pt-3 text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">' + escapeHtml(displayedTitle) + '</div>'
-          + '          <div class="min-h-0 flex-1 p-4 pt-3">'
-          + '            <pre class="h-full overflow-auto border border-slate-300 bg-slate-950 p-4 text-[11px] leading-5 text-slate-100">' + formatJson(displayedSchema || { summary: selectedPathEntry.summary }) + '</pre>'
-          + '          </div>'
+          + '        </div>'
           + '        </section>'
           + '      </div>'
           + '    </div>'
@@ -1494,15 +1484,6 @@ function generateOneOfExplorerHtml(model) {
           state.selectedPath = pathButton.getAttribute('data-path');
           state.selectedPathOwnerLabel = pathButton.getAttribute('data-path-branch');
           state.selectedBranchLabel = pathButton.getAttribute('data-path-branch');
-          state.selectedSchemaView = null;
-          writeHashState();
-          render();
-          return;
-        }
-
-        var schemaViewButton = event.target.closest('[data-schema-view]');
-        if (schemaViewButton) {
-          state.selectedSchemaView = schemaViewButton.getAttribute('data-schema-view');
           writeHashState();
           render();
           return;
@@ -1512,7 +1493,6 @@ function generateOneOfExplorerHtml(model) {
         if (closePathModalButton) {
           state.selectedPath = null;
           state.selectedPathOwnerLabel = null;
-          state.selectedSchemaView = null;
           writeHashState();
           render();
           return;
@@ -1522,7 +1502,6 @@ function generateOneOfExplorerHtml(model) {
         if (pathModalBackdrop && event.target === pathModalBackdrop) {
           state.selectedPath = null;
           state.selectedPathOwnerLabel = null;
-          state.selectedSchemaView = null;
           writeHashState();
           render();
         }
@@ -1556,7 +1535,6 @@ function generateOneOfExplorerHtml(model) {
 
         state.selectedPath = null;
         state.selectedPathOwnerLabel = null;
-        state.selectedSchemaView = null;
         writeHashState();
         render();
       });
