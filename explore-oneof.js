@@ -1549,6 +1549,18 @@ function generateOneOfExplorerHtml(model) {
         }
       });
 
+      window.addEventListener('keydown', function (event) {
+        if (event.key !== 'Escape' || !state.selectedPath) {
+          return;
+        }
+
+        state.selectedPath = null;
+        state.selectedPathOwnerLabel = null;
+        state.selectedSchemaView = null;
+        writeHashState();
+        render();
+      });
+
       window.addEventListener('hashchange', function () {
         readHashState();
         render();
