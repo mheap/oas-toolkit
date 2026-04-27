@@ -39,6 +39,12 @@ function analyzeOneOfUsage(rawSpec, dereferencedSpec, path) {
 
   const internalBranches = ensureUniqueBranchLabels(rawBranches.map((rawBranch, index) => {
     const resolvedBranch = dereferencedBranches[index] || rawBranch;
+    const shortLabel = getShortBranchLabel(
+      rawBranch,
+      resolvedBranch,
+      index,
+      rawNode.discriminator || dereferencedNode.discriminator
+    );
     const label = getBranchLabel(
       rawBranch,
       resolvedBranch,
@@ -49,6 +55,7 @@ function analyzeOneOfUsage(rawSpec, dereferencedSpec, path) {
     return {
       index,
       label,
+      shortLabel,
       ref: rawBranch && rawBranch.$ref ? rawBranch.$ref : null,
       summary: summarizeSchema(resolvedBranch),
       isObjectLike: isObjectLikeSchema(resolvedBranch),
@@ -80,20 +87,29 @@ function analyzeOneOfUsage(rawSpec, dereferencedSpec, path) {
 }
 
 function ensureUniqueBranchLabels(branches) {
-  const seen = new Map();
+  const labelSeen = new Map();
+  const shortSeen = new Map();
 
   return branches.map((branch) => {
-    const count = seen.get(branch.label) || 0;
-    seen.set(branch.label, count + 1);
+    const labelCount = labelSeen.get(branch.label) || 0;
+    labelSeen.set(branch.label, labelCount + 1);
 
-    if (count === 0) {
-      return branch;
+    const shortCount = shortSeen.get(branch.shortLabel) || 0;
+    shortSeen.set(branch.shortLabel, shortCount + 1);
+
+    const nextBranch = {
+      ...branch,
+    };
+
+    if (labelCount > 0) {
+      nextBranch.label = `${branch.label} (${labelCount + 1})`;
     }
 
-    return {
-      ...branch,
-      label: `${branch.label} (${count + 1})`,
-    };
+    if (shortCount > 0) {
+      nextBranch.shortLabel = `${branch.shortLabel} (${shortCount + 1})`;
+    }
+
+    return nextBranch;
   });
 }
 
@@ -132,6 +148,7 @@ function buildFieldComparison(branches, discriminator) {
 function compareObjectBranches(branches, discriminator, totalBranchCount) {
   const flattenedBranches = branches.map((branch) => ({
     label: branch.label,
+    shortLabel: branch.shortLabel,
     paths: flattenSchemaPaths(branch.schema),
   }));
   const allPaths = new Set();
@@ -157,6 +174,7 @@ function compareObjectBranches(branches, discriminator, totalBranchCount) {
 
       return {
         label: branch.label,
+        shortLabel: branch.shortLabel,
         present: Boolean(entry),
         required: entry ? entry.required : false,
         schemaSummary: entry ? entry.summary : null,
@@ -178,7 +196,7 @@ function compareObjectBranches(branches, discriminator, totalBranchCount) {
       || schemaFingerprints.every((fingerprint) => fingerprint === schemaFingerprints[0]);
     const schemaVariants = buildSchemaVariants(presentSchemas);
     const presentIn = presentSchemas.map((entry) => entry.label);
-    const missingIn = branchSchemas.filter((entry) => !entry.present).map((entry) => entry.label);
+    const missingIn = branchSchemas.filter((entry) => !entry.present).map((entry) => entry.shortLabel);
     const requiredIn = branchSchemas.filter((entry) => entry.required).map((entry) => entry.label);
     const optionalIn = branchSchemas.filter((entry) => entry.present && !entry.required).map((entry) => entry.label);
 
@@ -453,6 +471,15 @@ function getBranchLabel(rawBranch, resolvedBranch, index, discriminator) {
   }
 
   return `Option ${index + 1}`;
+}
+
+function getShortBranchLabel(rawBranch, resolvedBranch, index, discriminator) {
+  const refLabel = rawBranch && rawBranch.$ref ? rawBranch.$ref.split("/").pop() : null;
+  const titleLabel = resolvedBranch && resolvedBranch.title ? resolvedBranch.title : null;
+  const discriminatorLabel = getDiscriminatorLabel(resolvedBranch, discriminator);
+  const heuristicLabel = getHeuristicBranchLabel(resolvedBranch);
+
+  return discriminatorLabel || heuristicLabel || refLabel || titleLabel || `Option ${index + 1}`;
 }
 
 function getDiscriminatorLabel(schema, discriminator) {
@@ -954,6 +981,9 @@ function generateOneOfExplorerHtml(model) {
 
       function renderPathEntry(pathEntry, mode) {
         var badges = [];
+        if (pathEntry.isDeFactoDefault) {
+          badges.push(chip('Defacto default', 'warning'));
+        }
         if (pathEntry.required) {
           badges.push(chip('Required', 'accent'));
         } else if (pathEntry.required === false) {
@@ -965,9 +995,6 @@ function generateOneOfExplorerHtml(model) {
         if (pathEntry.missingIn && pathEntry.missingIn.length) {
           badges.push(chip('Missing in ' + pathEntry.missingIn.join(', '), 'danger'));
         }
-        if (pathEntry.isDeFactoDefault) {
-          badges.push(chip('Defacto default', 'warning'));
-        }
 
         var isSelected = state.selectedPath === pathEntry.path;
         var cardClass = joinClasses([
@@ -977,7 +1004,7 @@ function generateOneOfExplorerHtml(model) {
           isSelected ? 'border-sky-500 bg-sky-50' : 'border-slate-300 bg-white'
         ]);
         var schemaLabel = escapeHtml(mode === 'shared' ? 'Shared path schema' : 'Path schema');
-        var schemaBlock = '<details class="mt-3 border-t border-zinc-800 pt-3">'
+        var schemaBlock = '<details class="mt-3 border-t border-slate-300 pt-3">'
           + '  <summary class="cursor-pointer text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">' + schemaLabel + '</summary>'
           + '  <pre class="mt-2 overflow-auto border border-slate-300 bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">' + formatJson(pathEntry.schema || { summary: pathEntry.summary }) + '</pre>'
           + '</details>';
@@ -1064,9 +1091,8 @@ function generateOneOfExplorerHtml(model) {
             + '    </div>'
             + '    <div class="flex flex-wrap gap-1">' + chip(branchView.totalPathCount + ' paths', 'danger') + (deFactoDefaults ? chip(deFactoDefaults + ' Defacto default', 'warning') : '') + '</div>'
             + '  </div>'
-            + '  <div class="mb-4 text-sm leading-5 text-slate-500">Flattened branch-specific paths using dot notation and [] for arrays.</div>'
-            +      renderBranchBucket('Only in ' + branchView.label, onlyHere, 'No paths exist only in this branch.')
-            +      renderBranchBucket('Different schema only in ' + branchView.label, uniqueSchema, 'No uniquely-shaped paths in this branch.')
+            +      renderBranchBucket('Only in ' + branchView.label, onlyHere, 'No ' + branchView.label + ' only properties')
+            +      renderBranchBucket('Different schema only in ' + branchView.label, uniqueSchema, 'No properties with a different schema')
             +      renderBranchBucket('Shared with subset', sharedWithSubset, 'No subset-shared paths for this branch.')
             + '</section>';
         }).join('');

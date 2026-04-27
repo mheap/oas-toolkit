@@ -36,10 +36,8 @@ module.exports = async function (argv) {
       res.end(html);
     });
 
-    server.listen(0, () => {
-      const address = server.address();
-      const port = typeof address === "object" && address ? address.port : 0;
-      const url = `http://localhost:${port}`;
+    server.listen(4568, () => {
+      const url = "http://localhost:4568";
 
       console.log(`Serving oneOf explorer at ${url}`);
       open(url).catch((error) => {

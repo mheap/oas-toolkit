@@ -279,6 +279,55 @@ describe("explore-oneof", () => {
     ]);
   });
 
+  it("uses short discriminator labels in missing-in comparisons", async () => {
+    const model = await buildOneOfExplorerModel({
+      openapi: "3.0.0",
+      info: {
+        title: "Providers API",
+      },
+      components: {
+        schemas: {
+          Choice: {
+            oneOf: [
+              { $ref: "#/components/schemas/ProviderAnthropic" },
+              { $ref: "#/components/schemas/ProviderAzure" },
+              { $ref: "#/components/schemas/ProviderBedrock" },
+            ],
+            discriminator: {
+              propertyName: "provider",
+            },
+          },
+          ProviderAnthropic: {
+            type: "object",
+            properties: {
+              provider: { type: "string", enum: ["Anthropic"] },
+              token: { type: "string" },
+            },
+          },
+          ProviderAzure: {
+            type: "object",
+            properties: {
+              provider: { type: "string", enum: ["Azure"] },
+            },
+          },
+          ProviderBedrock: {
+            type: "object",
+            properties: {
+              provider: { type: "string", enum: ["Bedrock"] },
+            },
+          },
+        },
+      },
+    });
+
+    const anthropicView = model.oneOfUsages[0].fieldComparison.branchViews.find((branch) => branch.label === "ProviderAnthropic (Anthropic)");
+
+    expect(anthropicView.onlyHere.find((entry) => entry.path === "token").missingIn).toEqual([
+      "Azure",
+      "Bedrock",
+    ]);
+  });
+
   it("shows only [] paths for arrays", async () => {
     const model = await buildOneOfExplorerModel({
       openapi: "3.0.0",
