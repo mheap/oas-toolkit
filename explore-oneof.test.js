@@ -86,15 +86,15 @@ describe("explore-oneof", () => {
     expect(requestUsage.context.secondaryLabel).toBe("request body");
     expect(requestUsage.context.chips).toContain("application/json");
 
-    expect(requestUsage.fieldComparison.sharedPaths.map((field) => field.path)).toEqual(["name"]);
+    expect(requestUsage.fieldComparison.sharedPaths.map((field) => field.path)).toEqual(["kind", "name"]);
 
     const catView = requestUsage.fieldComparison.branchViews.find((branch) => branch.label === "Cat");
     const dogView = requestUsage.fieldComparison.branchViews.find((branch) => branch.label === "Dog");
 
-    expect(catView.uniqueSchema.map((entry) => entry.path)).toEqual(["kind"]);
+    expect(catView.uniqueSchema).toEqual([]);
     expect(catView.onlyHere.map((entry) => entry.path)).toEqual(["age"]);
     expect(catView.sharedWithSubset).toEqual([]);
-    expect(dogView.uniqueSchema.map((entry) => entry.path)).toEqual(["kind"]);
+    expect(dogView.uniqueSchema).toEqual([]);
     expect(dogView.onlyHere.map((entry) => entry.path)).toEqual(["barkVolume"]);
     expect(requestUsage.branches.map((branch) => branch.label)).toEqual(["Cat", "Dog"]);
   });
@@ -163,8 +163,82 @@ describe("explore-oneof", () => {
     const azureView = usage.fieldComparison.branchViews.find((branch) => branch.label === "Azure");
 
     expect(anthropicView.sharedWithSubset.map((entry) => entry.path)).toContain("config");
+    expect(anthropicView.sharedWithSubset.map((entry) => entry.path)).not.toContain("config.auth");
     expect(anthropicView.sharedWithSubset.find((entry) => entry.path === "config").peers).toEqual(["Cerebras"]);
     expect(azureView.uniqueSchema.map((entry) => entry.path)).toContain("config");
+  });
+
+  it("keeps deeper shared paths when the parent sharing scope is different", async () => {
+    const model = await buildOneOfExplorerModel({
+      openapi: "3.0.0",
+      info: {
+        title: "Scope API",
+      },
+      components: {
+        schemas: {
+          Choice: {
+            oneOf: [
+              { $ref: "#/components/schemas/Anthropic" },
+              { $ref: "#/components/schemas/Azure" },
+              { $ref: "#/components/schemas/Cerebras" },
+            ],
+          },
+          Anthropic: {
+            type: "object",
+            properties: {
+              config: {
+                type: "object",
+                properties: {
+                  auth: {
+                    type: "object",
+                    properties: {
+                      token: { type: "string" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          Azure: {
+            type: "object",
+            properties: {
+              config: {
+                type: "object",
+                properties: {
+                  auth: {
+                    type: "object",
+                    properties: {
+                      token: { type: "string" },
+                    },
+                  },
+                  instance: { type: "string" },
+                },
+              },
+            },
+          },
+          Cerebras: {
+            type: "object",
+            properties: {
+              config: {
+                type: "string",
+              },
+              auth: {
+                type: "object",
+                properties: {
+                  token: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const anthropicView = model.oneOfUsages[0].fieldComparison.branchViews.find((branch) => branch.label === "Anthropic");
+    const sharedSubsetPaths = anthropicView.sharedWithSubset.map((entry) => entry.path);
+
+    expect(sharedSubsetPaths).toContain("config.auth");
+    expect(sharedSubsetPaths).not.toContain("config.auth.token");
   });
 
   it("uses heuristic branch labels and disambiguates duplicates", async () => {
@@ -199,6 +273,75 @@ describe("explore-oneof", () => {
       "created",
       "created (2)",
     ]);
+  });
+
+  it("shows only [] paths for arrays", async () => {
+    const model = await buildOneOfExplorerModel({
+      openapi: "3.0.0",
+      info: {
+        title: "Array API",
+      },
+      components: {
+        schemas: {
+          Choice: {
+            oneOf: [
+              { $ref: "#/components/schemas/One" },
+              { $ref: "#/components/schemas/Two" },
+            ],
+          },
+          One: {
+            type: "object",
+            properties: {
+              config: {
+                type: "object",
+                properties: {
+                  headers: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        name: { type: "string" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          Two: {
+            type: "object",
+            properties: {
+              config: {
+                type: "object",
+                properties: {
+                  headers: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        value: { type: "string" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const usage = model.oneOfUsages[0];
+    const oneView = usage.fieldComparison.branchViews.find((branch) => branch.label === "One");
+    const twoView = usage.fieldComparison.branchViews.find((branch) => branch.label === "Two");
+    const paths = oneView.sharedWithSubset.concat(oneView.uniqueSchema, oneView.onlyHere, twoView.sharedWithSubset, twoView.uniqueSchema, twoView.onlyHere)
+      .map((entry) => entry.path)
+      .sort();
+
+    expect(paths).toContain("config.headers[]");
+    expect(paths).toContain("config.headers[].name");
+    expect(paths).toContain("config.headers[].value");
+    expect(paths).not.toContain("config.headers");
   });
 
   it("renders a self contained html explorer with search, layouts, and hash state", () => {

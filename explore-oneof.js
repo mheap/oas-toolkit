@@ -71,7 +71,10 @@ function analyzeOneOfUsage(rawSpec, dereferencedSpec, path) {
     branchCount: internalBranches.length,
     discriminator: summarizeDiscriminator(rawNode.discriminator || dereferencedNode.discriminator),
     branches: internalBranches.map(({ schema, requiredSet, ...branch }) => branch),
-    fieldComparison: buildFieldComparison(internalBranches),
+    fieldComparison: buildFieldComparison(
+      internalBranches,
+      rawNode.discriminator || dereferencedNode.discriminator
+    ),
     rawOneOf: sanitizeForJson(rawBranches),
   };
 }
@@ -94,7 +97,7 @@ function ensureUniqueBranchLabels(branches) {
   });
 }
 
-function buildFieldComparison(branches) {
+function buildFieldComparison(branches, discriminator) {
   const objectBranches = branches.filter((branch) => branch.isObjectLike);
   const skippedBranchLabels = branches
     .filter((branch) => !branch.isObjectLike)
@@ -112,7 +115,7 @@ function buildFieldComparison(branches) {
     };
   }
 
-  const comparison = compareObjectBranches(objectBranches);
+  const comparison = compareObjectBranches(objectBranches, discriminator);
 
   return {
     scope: {
@@ -126,7 +129,7 @@ function buildFieldComparison(branches) {
   };
 }
 
-function compareObjectBranches(branches) {
+function compareObjectBranches(branches, discriminator) {
   const flattenedBranches = branches.map((branch) => ({
     label: branch.label,
     paths: flattenSchemaPaths(branch.schema),
@@ -166,7 +169,11 @@ function compareObjectBranches(branches) {
       continue;
     }
 
-    const schemaFingerprints = presentSchemas.map((entry) => JSON.stringify(entry.schema));
+    const schemaFingerprints = presentSchemas.map((entry) => JSON.stringify(normalizeSchemaForComparison(
+      path,
+      entry.schema,
+      discriminator
+    )));
     const schemaMatchesWherePresent = schemaFingerprints.length <= 1
       || schemaFingerprints.every((fingerprint) => fingerprint === schemaFingerprints[0]);
     const schemaVariants = buildSchemaVariants(presentSchemas);
@@ -210,12 +217,15 @@ function compareObjectBranches(branches) {
   for (const branchView of branchViews) {
     branchView.onlyHere.sort(sortPathEntries);
     branchView.uniqueSchema.sort(sortPathEntries);
-    branchView.sharedWithSubset.sort(sortPathEntries);
+    branchView.sharedWithSubset = compactSharedEntries(
+      branchView.sharedWithSubset.sort(sortPathEntries),
+      (entry) => entry.presentIn.slice().sort().join("|")
+    );
     branchView.totalPathCount = branchView.onlyHere.length + branchView.uniqueSchema.length + branchView.sharedWithSubset.length;
   }
 
   return {
-    sharedPaths: sharedPaths.sort(sortPathEntries),
+    sharedPaths: compactSharedEntries(sharedPaths.sort(sortPathEntries), () => "all"),
     branchViews,
     nonSharedPathCount: Array.from(branchViews).reduce((total, branchView) => total + branchView.totalPathCount, 0),
   };
@@ -234,7 +244,7 @@ function visitSchemaPaths(schema, path, required, ancestors, entries) {
     return;
   }
 
-  if (path) {
+  if (path && !schema.items) {
     entries[path] = {
       required,
       summary: summarizeSchema(schema),
@@ -264,6 +274,50 @@ function visitSchemaPaths(schema, path, required, ancestors, entries) {
 
 function sortPathEntries(left, right) {
   return left.path.localeCompare(right.path);
+}
+
+function compactSharedEntries(entries, getGroupKey) {
+  const kept = [];
+
+  for (const entry of entries) {
+    const groupKey = getGroupKey(entry);
+    const hasAncestor = kept.some((candidate) => (
+      getGroupKey(candidate) === groupKey
+      && isDescendantPath(entry.path, candidate.path)
+    ));
+
+    if (!hasAncestor) {
+      kept.push(entry);
+    }
+  }
+
+  return kept;
+}
+
+function isDescendantPath(path, ancestorPath) {
+  return path.startsWith(`${ancestorPath}.`) || path.startsWith(`${ancestorPath}[`);
+}
+
+function normalizeSchemaForComparison(path, schema, discriminator) {
+  if (!discriminator || !discriminator.propertyName || !schema || typeof schema !== "object") {
+    return schema;
+  }
+
+  if (path !== discriminator.propertyName) {
+    return schema;
+  }
+
+  const normalized = { ...schema };
+
+  if (Object.prototype.hasOwnProperty.call(normalized, "const")) {
+    normalized.const = "__discriminator__";
+  }
+
+  if (Array.isArray(normalized.enum)) {
+    normalized.enum = ["__discriminator__"];
+  }
+
+  return normalized;
 }
 
 function buildSchemaVariants(presentSchemas) {
