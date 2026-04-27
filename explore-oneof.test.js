@@ -87,6 +87,9 @@ describe("explore-oneof", () => {
     expect(requestUsage.context.chips).toContain("application/json");
 
     expect(requestUsage.fieldComparison.sharedPaths.map((field) => field.path)).toEqual(["kind", "name"]);
+    expect(requestUsage.fieldComparison.sharedPaths.find((field) => field.path === "name").schema).toEqual({
+      type: "string",
+    });
 
     const catView = requestUsage.fieldComparison.branchViews.find((branch) => branch.label === "Cat");
     const dogView = requestUsage.fieldComparison.branchViews.find((branch) => branch.label === "Dog");
@@ -165,6 +168,7 @@ describe("explore-oneof", () => {
     expect(anthropicView.sharedWithSubset.map((entry) => entry.path)).toContain("config");
     expect(anthropicView.sharedWithSubset.map((entry) => entry.path)).not.toContain("config.auth");
     expect(anthropicView.sharedWithSubset.find((entry) => entry.path === "config").peers).toEqual(["Cerebras"]);
+    expect(anthropicView.sharedWithSubset.find((entry) => entry.path === "config").isDeFactoDefault).toBe(true);
     expect(azureView.uniqueSchema.map((entry) => entry.path)).toContain("config");
   });
 
@@ -429,10 +433,21 @@ describe("explore-oneof", () => {
                     schema: { type: "object", properties: { token: { type: "string" }, instance: { type: "string" } } },
                   },
                 ],
-                sharedWithSubset: [],
+                sharedWithSubset: [
+                  {
+                    path: "config.auth",
+                    summary: { type: "string", propertyCount: 0 },
+                    required: true,
+                    presentIn: ["Cat", "Dog"],
+                    missingIn: [],
+                    peers: ["Cat"],
+                    isDeFactoDefault: true,
+                    schema: { type: "string" },
+                  },
+                ],
               },
             ],
-            nonSharedPathCount: 4,
+            nonSharedPathCount: 5,
           },
           branches: [
             {
@@ -474,6 +489,8 @@ describe("explore-oneof", () => {
     expect(html).toContain("Show only unique variants");
     expect(html).toContain("Shared across all branches");
     expect(html).toContain("Only in");
+    expect(html).toContain("defacto default");
+    expect(html).toContain("bg-zinc-950");
     expect(html).toContain("config.instance");
     expect(html).toContain("variants");
     expect(html).toContain("[]");
