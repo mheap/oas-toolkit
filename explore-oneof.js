@@ -840,6 +840,7 @@ function generateOneOfExplorerHtml(model) {
         uniqueVariantsOnly: false,
         selectedPath: null,
         selectedPathOwnerLabel: null,
+        selectedSchemaView: null,
         selectedBranchLabel: null
       };
 
@@ -943,6 +944,7 @@ function generateOneOfExplorerHtml(model) {
         var variants = params.get("variants");
         var selectedPath = params.get("path");
         var selectedPathOwnerLabel = params.get("pathOwner");
+        var selectedSchemaView = params.get("schemaView");
         var selectedBranchLabel = params.get("branch");
         if (pointer) state.selectedPointer = pointer;
         if (layout === "accordion" || layout === "side-by-side") state.layout = layout;
@@ -951,6 +953,7 @@ function generateOneOfExplorerHtml(model) {
         state.uniqueVariantsOnly = variants === "unique";
         state.selectedPath = selectedPath;
         state.selectedPathOwnerLabel = selectedPathOwnerLabel;
+        state.selectedSchemaView = selectedSchemaView;
         state.selectedBranchLabel = selectedBranchLabel;
       }
 
@@ -962,6 +965,7 @@ function generateOneOfExplorerHtml(model) {
         if (state.uniqueVariantsOnly) params.set("variants", "unique");
         if (state.selectedPath) params.set("path", state.selectedPath);
         if (state.selectedPathOwnerLabel) params.set("pathOwner", state.selectedPathOwnerLabel);
+        if (state.selectedSchemaView) params.set("schemaView", state.selectedSchemaView);
         if (state.selectedBranchLabel) params.set("branch", state.selectedBranchLabel);
         var nextHash = params.toString();
         if (window.location.hash.slice(1) !== nextHash) {
@@ -1144,6 +1148,36 @@ function generateOneOfExplorerHtml(model) {
         return branch ? (branch.shortLabel || branch.label) : label;
       }
 
+      function getPathEntriesForPath(selectedUsage, path) {
+        var entries = [];
+
+        (selectedUsage.fieldComparison.sharedPaths || []).forEach(function (entry) {
+          if (entry.path === path) {
+            entries.push({
+              source: 'shared',
+              entry: entry,
+            });
+          }
+        });
+
+        (selectedUsage.fieldComparison.branchViews || []).forEach(function (branchView) {
+          ([])
+            .concat(branchView.onlyHere || [])
+            .concat(branchView.uniqueSchema || [])
+            .concat(branchView.sharedWithSubset || [])
+            .forEach(function (entry) {
+              if (entry.path === path) {
+                entries.push({
+                  source: branchView.label,
+                  entry: entry,
+                });
+              }
+            });
+        });
+
+        return entries;
+      }
+
       function findPathImplementations(selectedUsage, path) {
         var implementations = [];
 
@@ -1241,10 +1275,20 @@ function generateOneOfExplorerHtml(model) {
           return getBranchShortLabel(selectedUsage, label);
         });
         var branchSchemas = selectedPathEntry.branchSchemas || [];
+        var allEntriesForPath = getPathEntriesForPath(selectedUsage, selectedPathEntry.path);
+        var defactoSchemaEntry = null;
         var summaryItems = [];
         var sharedWith = [];
         var missingFrom = selectedPathEntry.missingIn || [];
         var differentSchema = [];
+
+        if (branchSchemas.length) {
+          defactoSchemaEntry = selectedPathEntry;
+        } else {
+          defactoSchemaEntry = allEntriesForPath
+            .map(function (item) { return item.entry; })
+            .find(function (entry) { return entry.isDeFactoDefault; }) || null;
+        }
 
         if (branchSchemas.length) {
           sharedWith = branchSchemas.filter(function (entry) {
@@ -1280,6 +1324,20 @@ function generateOneOfExplorerHtml(model) {
           });
         }
 
+        var hasDefactoSchema = Boolean(defactoSchemaEntry);
+        var schemaView = state.selectedSchemaView;
+        if (schemaView !== 'path' && schemaView !== 'defacto') {
+          schemaView = hasDefactoSchema ? 'defacto' : 'path';
+        }
+        if (schemaView === 'defacto' && !hasDefactoSchema) {
+          schemaView = 'path';
+        }
+
+        var displayedSchema = schemaView === 'defacto' && defactoSchemaEntry
+          ? defactoSchemaEntry.schema
+          : selectedPathEntry.schema;
+        var displayedTitle = schemaView === 'defacto' ? 'Defacto schema' : 'Path schema';
+
         return ''
           + '<div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-500/60 p-4" data-path-modal="true">'
           + '  <div class="h-[95vh] w-[95vw] overflow-hidden border border-slate-300 bg-white shadow-2xl">'
@@ -1296,10 +1354,18 @@ function generateOneOfExplorerHtml(model) {
                    return '<li><span class="font-medium text-slate-900">' + escapeHtml(item.label) + ':</span> ' + escapeHtml(item.values.join(', ')) + '</li>';
                  }).join('')
           + '        </ul>'
-          + '        <details class="border border-slate-300 bg-white p-4">'
-          + '          <summary class="cursor-pointer text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Path schema</summary>'
-          + '          <pre class="mt-3 overflow-auto border border-slate-300 bg-slate-950 p-4 text-[11px] leading-5 text-slate-100">' + formatJson(selectedPathEntry.schema || { summary: selectedPathEntry.summary }) + '</pre>'
-          + '        </details>'
+          + '        <section class="flex min-h-[60vh] min-w-0 flex-1 flex-col border border-slate-300 bg-white">'
+          + '          <div class="flex flex-wrap items-center gap-2 border-b border-slate-300 px-4 py-3">'
+          +               (hasDefactoSchema
+                            ? outlineButton('Defacto schema', schemaView === 'defacto', 'data-schema-view="defacto"')
+                            : '')
+          +               outlineButton('Path schema', schemaView === 'path', 'data-schema-view="path"')
+          + '          </div>'
+          + '          <div class="px-4 pt-3 text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">' + escapeHtml(displayedTitle) + '</div>'
+          + '          <div class="min-h-0 flex-1 p-4 pt-3">'
+          + '            <pre class="h-full overflow-auto border border-slate-300 bg-slate-950 p-4 text-[11px] leading-5 text-slate-100">' + formatJson(displayedSchema || { summary: selectedPathEntry.summary }) + '</pre>'
+          + '          </div>'
+          + '        </section>'
           + '      </div>'
           + '    </div>'
           + '  </div>'
@@ -1418,6 +1484,15 @@ function generateOneOfExplorerHtml(model) {
         if (pathButton) {
           state.selectedPath = pathButton.getAttribute('data-path');
           state.selectedPathOwnerLabel = pathButton.getAttribute('data-path-branch');
+          state.selectedSchemaView = null;
+          writeHashState();
+          render();
+          return;
+        }
+
+        var schemaViewButton = event.target.closest('[data-schema-view]');
+        if (schemaViewButton) {
+          state.selectedSchemaView = schemaViewButton.getAttribute('data-schema-view');
           writeHashState();
           render();
           return;
@@ -1427,6 +1502,7 @@ function generateOneOfExplorerHtml(model) {
         if (closePathModalButton) {
           state.selectedPath = null;
           state.selectedPathOwnerLabel = null;
+          state.selectedSchemaView = null;
           writeHashState();
           render();
           return;
@@ -1436,6 +1512,7 @@ function generateOneOfExplorerHtml(model) {
         if (pathModalBackdrop && event.target === pathModalBackdrop) {
           state.selectedPath = null;
           state.selectedPathOwnerLabel = null;
+          state.selectedSchemaView = null;
           writeHashState();
           render();
         }
