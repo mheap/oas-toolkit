@@ -1281,20 +1281,29 @@ function generateOneOfExplorerHtml(model) {
         }
 
         return ''
-          + '<section class="border border-slate-300 bg-white p-4">'
-          + '  <div class="mb-3 flex flex-wrap items-center justify-between gap-2">'
-          + '    <div class="text-base font-semibold text-slate-900">Path comparison: ' + escapeHtml(selectedPathEntry.path) + '</div>'
-          + '  </div>'
-          + '  <ul class="ml-5 list-disc text-sm leading-6 text-slate-600">'
+          + '<div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-500/60 p-4" data-path-modal="true">'
+          + '  <div class="h-[95vh] w-[95vw] overflow-hidden border border-slate-300 bg-white shadow-2xl">'
+          + '    <div class="flex h-full flex-col">'
+          + '      <div class="flex items-start justify-between gap-4 border-b border-slate-300 px-5 py-4">'
+          + '        <div class="min-w-0">'
+          + '          <div class="text-base font-semibold text-slate-900">Path comparison: ' + escapeHtml(selectedPathEntry.path) + '</div>'
+          + '        </div>'
+          + '        <button class="border border-slate-300 bg-white px-3 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-slate-600 hover:border-slate-400 hover:text-slate-900" data-close-path-modal="true">Close</button>'
+          + '      </div>'
+          + '      <div class="grid min-h-0 flex-1 gap-4 overflow-auto p-5">'
+          + '        <ul class="ml-5 list-disc text-sm leading-6 text-slate-600">'
           +      summaryItems.map(function (item) {
                    return '<li><span class="font-medium text-slate-900">' + escapeHtml(item.label) + ':</span> ' + escapeHtml(item.values.join(', ')) + '</li>';
                  }).join('')
-          + '  </ul>'
-          + '  <details class="mt-3 border-t border-slate-300 pt-3">'
-          + '    <summary class="cursor-pointer text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Path schema</summary>'
-          + '    <pre class="mt-2 overflow-auto border border-slate-300 bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">' + formatJson(selectedPathEntry.schema || { summary: selectedPathEntry.summary }) + '</pre>'
-          + '  </details>'
-          + '</section>';
+          + '        </ul>'
+          + '        <details class="border border-slate-300 bg-white p-4">'
+          + '          <summary class="cursor-pointer text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Path schema</summary>'
+          + '          <pre class="mt-3 overflow-auto border border-slate-300 bg-slate-950 p-4 text-[11px] leading-5 text-slate-100">' + formatJson(selectedPathEntry.schema || { summary: selectedPathEntry.summary }) + '</pre>'
+          + '        </details>'
+          + '      </div>'
+          + '    </div>'
+          + '  </div>'
+          + '</div>';
       }
 
       function renderDetail(selectedUsage) {
@@ -1344,10 +1353,6 @@ function generateOneOfExplorerHtml(model) {
           + '    </section>'
           +      renderBranchSpecificSections(selectedUsage.fieldComparison.branchViews)
           +      renderSelectedPath(selectedUsage)
-          + '    <section class="border border-slate-300 bg-white p-4">'
-          + '      <div class="mb-3 text-base font-semibold text-slate-900">Raw oneOf definition</div>'
-          + '      <pre class="overflow-auto border border-slate-300 bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">' + formatJson(selectedUsage.rawOneOf) + '</pre>'
-          + '    </section>'
           + '  </div>'
           + '</div>';
       }
@@ -1416,6 +1421,23 @@ function generateOneOfExplorerHtml(model) {
           writeHashState();
           render();
           return;
+        }
+
+        var closePathModalButton = event.target.closest('[data-close-path-modal]');
+        if (closePathModalButton) {
+          state.selectedPath = null;
+          state.selectedPathOwnerLabel = null;
+          writeHashState();
+          render();
+          return;
+        }
+
+        var pathModalBackdrop = event.target.closest('[data-path-modal]');
+        if (pathModalBackdrop && event.target === pathModalBackdrop) {
+          state.selectedPath = null;
+          state.selectedPathOwnerLabel = null;
+          writeHashState();
+          render();
         }
 
         var branchLink = event.target.closest('[data-branch-link]');

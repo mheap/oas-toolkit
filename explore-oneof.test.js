@@ -615,5 +615,10 @@ describe("explore-oneof", () => {
     expect(html).toContain("data-branch-link");
     expect(html).toContain("Path comparison:");
     expect(html).toContain("pathOwner");
+    expect(html).toContain("data-path-modal");
+    expect(html).toContain("data-close-path-modal");
+    expect(html).toContain("w-[95vw]");
+    expect(html).toContain("h-[95vh]");
+    expect(html).not.toContain("Raw oneOf definition");
   });
 });
