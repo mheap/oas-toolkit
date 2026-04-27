@@ -226,7 +226,7 @@ function compareObjectBranches(branches, discriminator, totalBranchCount) {
     branchView.sharedWithSubset = compactSharedEntries(
       branchView.sharedWithSubset.sort(sortPathEntries),
       (entry) => entry.presentIn.slice().sort().join("|")
-    );
+    ).sort(sortSharedWithSubsetEntries);
     branchView.totalPathCount = branchView.onlyHere.length + branchView.uniqueSchema.length + branchView.sharedWithSubset.length;
   }
 
@@ -280,6 +280,14 @@ function visitSchemaPaths(schema, path, required, ancestors, entries) {
 
 function sortPathEntries(left, right) {
   return left.path.localeCompare(right.path);
+}
+
+function sortSharedWithSubsetEntries(left, right) {
+  if (Boolean(left.isDeFactoDefault) !== Boolean(right.isDeFactoDefault)) {
+    return left.isDeFactoDefault ? -1 : 1;
+  }
+
+  return sortPathEntries(left, right);
 }
 
 function compactSharedEntries(entries, getGroupKey) {
@@ -767,7 +775,7 @@ function generateOneOfExplorerHtml(model) {
   <title>${escapeHtml(title)}</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="min-h-screen bg-zinc-950 text-zinc-100 antialiased">
+<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
   <div id="app"></div>
   <script>
     window.__ONEOF_EXPLORER_DATA__ = ${payload};
@@ -839,21 +847,21 @@ function generateOneOfExplorerHtml(model) {
 
       function chip(text, tone) {
         var styles = {
-          neutral: "border border-zinc-800 bg-zinc-900 text-zinc-300",
-          success: "border border-emerald-900/70 bg-emerald-950/50 text-emerald-300",
-          danger: "border border-rose-900/70 bg-rose-950/50 text-rose-300",
-          accent: "border border-cyan-900/70 bg-cyan-950/50 text-cyan-300",
-          warning: "border border-amber-900/70 bg-amber-950/50 text-amber-300"
+          neutral: "border border-slate-300 bg-white text-slate-600",
+          success: "border border-emerald-300 bg-emerald-50 text-emerald-700",
+          danger: "border border-rose-300 bg-rose-50 text-rose-700",
+          accent: "border border-sky-300 bg-sky-50 text-sky-700",
+          warning: "border border-amber-300 bg-amber-50 text-amber-700"
         };
         return '<span class="inline-flex items-center px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] ' + (styles[tone || "neutral"] || styles.neutral) + '">' + escapeHtml(text) + '</span>';
       }
 
       function outlineButton(label, active, attrs) {
-        return '<button ' + attrs + ' class="border px-2 py-1 text-[10px] font-medium uppercase tracking-[0.14em] transition ' + (active ? 'border-cyan-500 bg-cyan-500/10 text-cyan-300' : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:text-zinc-100') + '">' + escapeHtml(label) + '</button>';
+        return '<button ' + attrs + ' class="border px-2 py-1 text-[10px] font-medium uppercase tracking-[0.14em] transition ' + (active ? 'border-sky-500 bg-sky-50 text-sky-700' : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-900') + '">' + escapeHtml(label) + '</button>';
       }
 
       function linkButton(label, attrs, extraClasses) {
-        return '<button ' + attrs + ' class="cursor-pointer text-left text-cyan-300 underline underline-offset-2 hover:text-cyan-200 ' + (extraClasses || '') + '">' + escapeHtml(label) + '</button>';
+        return '<button ' + attrs + ' class="cursor-pointer text-left text-sky-700 underline underline-offset-2 hover:text-sky-800 ' + (extraClasses || '') + '">' + escapeHtml(label) + '</button>';
       }
 
       function getFilteredUsages() {
@@ -918,7 +926,7 @@ function generateOneOfExplorerHtml(model) {
 
       function renderUsageList(filteredUsages, selectedUsage) {
         if (!filteredUsages.length) {
-          return '<div class="border border-dashed border-zinc-800 bg-zinc-900 px-4 py-8 text-center text-sm text-zinc-500">No oneOf usages match this search.</div>';
+          return '<div class="border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-500">No oneOf usages match this search.</div>';
         }
 
         return filteredUsages.map(function (usage) {
@@ -935,10 +943,10 @@ function generateOneOfExplorerHtml(model) {
           }
 
           return ''
-            + '<button class="w-full border px-3 py-2 text-left transition ' + (active ? 'border-cyan-500 bg-cyan-500/10' : 'border-zinc-800 bg-zinc-950 hover:border-zinc-700 hover:bg-zinc-900') + '" data-pointer="' + escapeHtml(usage.pointer) + '">'
-            + '  <div class="text-sm font-semibold leading-5 text-zinc-100">' + escapeHtml(context.primaryLabel || usage.path) + '</div>'
-            +      (context.secondaryLabel ? '<div class="usage-context mt-1 text-[11px] text-zinc-500">' + escapeHtml(context.secondaryLabel) + '</div>' : '')
-            + '  <div class="mt-1 break-words font-mono text-[11px] leading-4 text-zinc-500">' + escapeHtml(usage.path) + '</div>'
+            + '<button class="w-full border px-3 py-2 text-left transition ' + (active ? 'border-sky-500 bg-sky-50' : 'border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50') + '" data-pointer="' + escapeHtml(usage.pointer) + '">'
+            + '  <div class="text-sm font-semibold leading-5 text-slate-900">' + escapeHtml(context.primaryLabel || usage.path) + '</div>'
+            +      (context.secondaryLabel ? '<div class="usage-context mt-1 text-[11px] text-slate-500">' + escapeHtml(context.secondaryLabel) + '</div>' : '')
+            + '  <div class="mt-1 break-words font-mono text-[11px] leading-4 text-slate-500">' + escapeHtml(usage.path) + '</div>'
             + '  <div class="mt-2 flex flex-wrap gap-1">' + chips.join('') + '</div>'
             + '</button>';
         }).join('');
@@ -951,14 +959,14 @@ function generateOneOfExplorerHtml(model) {
         } else if (pathEntry.required === false) {
           badges.push(chip('Optional', 'neutral'));
         }
-        if (pathEntry.peers && pathEntry.peers.length) {
+        if (!pathEntry.isDeFactoDefault && pathEntry.peers && pathEntry.peers.length) {
           badges.push(chip('Shared with ' + pathEntry.peers.join(', '), 'success'));
         }
         if (pathEntry.missingIn && pathEntry.missingIn.length) {
           badges.push(chip('Missing in ' + pathEntry.missingIn.join(', '), 'danger'));
         }
         if (pathEntry.isDeFactoDefault) {
-          badges.push(chip('defacto default', 'warning'));
+          badges.push(chip('Defacto default', 'warning'));
         }
 
         var isSelected = state.selectedPath === pathEntry.path;
@@ -966,12 +974,12 @@ function generateOneOfExplorerHtml(model) {
           'border',
           'px-3',
           'py-2',
-          isSelected ? 'border-cyan-500 bg-cyan-500/10' : 'border-zinc-800 bg-zinc-900'
+          isSelected ? 'border-sky-500 bg-sky-50' : 'border-slate-300 bg-white'
         ]);
         var schemaLabel = escapeHtml(mode === 'shared' ? 'Shared path schema' : 'Path schema');
         var schemaBlock = '<details class="mt-3 border-t border-zinc-800 pt-3">'
-          + '  <summary class="cursor-pointer text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">' + schemaLabel + '</summary>'
-          + '  <pre class="mt-2 overflow-auto border border-zinc-800 bg-black p-3 text-[11px] leading-5 text-zinc-200">' + formatJson(pathEntry.schema || { summary: pathEntry.summary }) + '</pre>'
+          + '  <summary class="cursor-pointer text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">' + schemaLabel + '</summary>'
+          + '  <pre class="mt-2 overflow-auto border border-slate-300 bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">' + formatJson(pathEntry.schema || { summary: pathEntry.summary }) + '</pre>'
           + '</details>';
 
         if (pathEntry.isDeFactoDefault && mode === 'branch') {
@@ -980,10 +988,10 @@ function generateOneOfExplorerHtml(model) {
             + '  <summary class="cursor-pointer list-none">'
             + '    <div class="flex items-start justify-between gap-3">'
             + '      <div class="min-w-0">'
-            + '        <div class="font-mono text-[12px] font-semibold leading-5 text-zinc-100">' + linkButton(pathEntry.path, 'data-path="' + escapeHtml(pathEntry.path) + '"', 'w-full') + '</div>'
-            + '        <div class="mt-1 text-[12px] leading-5 text-zinc-500">' + escapeHtml(summaryText(pathEntry.summary)) + '</div>'
+            + '        <div class="font-mono text-[12px] font-semibold leading-5 text-slate-900">' + linkButton(pathEntry.path, 'data-path="' + escapeHtml(pathEntry.path) + '"', 'w-full') + '</div>'
+            + '        <div class="mt-1 text-[12px] leading-5 text-slate-500">' + escapeHtml(summaryText(pathEntry.summary)) + '</div>'
             + '      </div>'
-            + '      <div class="shrink-0 text-[10px] uppercase tracking-[0.14em] text-zinc-600">collapsed</div>'
+            + '      <div class="shrink-0 text-[10px] uppercase tracking-[0.14em] text-slate-400">collapsed</div>'
             + '    </div>'
             + '    <div class="mt-2 flex flex-wrap gap-1">' + badges.join('') + '</div>'
             + '  </summary>'
@@ -993,16 +1001,16 @@ function generateOneOfExplorerHtml(model) {
 
         return ''
           + '<div class="' + cardClass + '">'
-          + '  <div class="font-mono text-[12px] font-semibold leading-5 text-zinc-100">' + linkButton(pathEntry.path, 'data-path="' + escapeHtml(pathEntry.path) + '"', 'w-full') + '</div>'
+          + '  <div class="font-mono text-[12px] font-semibold leading-5 text-slate-900">' + linkButton(pathEntry.path, 'data-path="' + escapeHtml(pathEntry.path) + '"', 'w-full') + '</div>'
           + '  <div class="mt-2 flex flex-wrap gap-1">' + badges.join('') + '</div>'
-          + '  <div class="mt-1 text-[12px] leading-5 text-zinc-500">' + escapeHtml(summaryText(pathEntry.summary)) + '</div>'
+          + '  <div class="mt-1 text-[12px] leading-5 text-slate-500">' + escapeHtml(summaryText(pathEntry.summary)) + '</div>'
           +      schemaBlock
           + '</div>';
       }
 
       function renderPathList(entries, mode, emptyText) {
         if (!entries.length) {
-          return '<div class="empty-inline border border-dashed border-zinc-800 bg-zinc-950 px-3 py-4 text-center text-sm text-zinc-500">' + escapeHtml(emptyText) + '</div>';
+          return '<div class="empty-inline border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-center text-sm text-slate-500">' + escapeHtml(emptyText) + '</div>';
         }
 
         return '<div class="grid gap-2">' + entries.map(function (entry) {
@@ -1028,12 +1036,12 @@ function generateOneOfExplorerHtml(model) {
 
       function renderBranchBucket(title, entries, emptyText) {
         if (!entries.length) {
-          return '<div class="empty-inline border border-dashed border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-500"><strong class="text-zinc-300">' + escapeHtml(title) + ':</strong> ' + escapeHtml(emptyText) + '</div>';
+          return '<div class="empty-inline border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-500"><strong class="text-slate-700">' + escapeHtml(title) + ':</strong> ' + escapeHtml(emptyText) + '</div>';
         }
 
         return ''
-          + '<section class="border border-zinc-800 bg-zinc-950">'
-          + '  <div class="border-b border-zinc-800 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-300">' + escapeHtml(title) + '</div>'
+          + '<section class="border border-slate-300 bg-slate-50">'
+          + '  <div class="border-b border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-700">' + escapeHtml(title) + '</div>'
           + '  <div class="grid gap-2 p-3">' + renderPathList(entries, 'branch', emptyText) + '</div>'
           + '</section>';
       }
@@ -1048,15 +1056,15 @@ function generateOneOfExplorerHtml(model) {
           }).length;
 
           return ''
-            + '<section class="border border-zinc-800 bg-zinc-900 p-4">'
+            + '<section class="border border-slate-300 bg-white p-4">'
             + '  <div class="mb-3 flex flex-wrap items-start justify-between gap-2">'
             + '    <div>'
-            + '      <div class="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Branch</div>'
-            + '      <div class="mt-1 text-base font-semibold text-zinc-100">' + escapeHtml(branchView.label) + '</div>'
+            + '      <div class="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Branch</div>'
+            + '      <div class="mt-1 text-base font-semibold text-slate-900">' + escapeHtml(branchView.label) + '</div>'
             + '    </div>'
-            + '    <div class="flex flex-wrap gap-1">' + chip(branchView.totalPathCount + ' paths', 'danger') + (deFactoDefaults ? chip(deFactoDefaults + ' defacto default', 'warning') : '') + '</div>'
+            + '    <div class="flex flex-wrap gap-1">' + chip(branchView.totalPathCount + ' paths', 'danger') + (deFactoDefaults ? chip(deFactoDefaults + ' Defacto default', 'warning') : '') + '</div>'
             + '  </div>'
-            + '  <div class="mb-4 text-sm leading-5 text-zinc-500">Flattened branch-specific paths using dot notation and [] for arrays.</div>'
+            + '  <div class="mb-4 text-sm leading-5 text-slate-500">Flattened branch-specific paths using dot notation and [] for arrays.</div>'
             +      renderBranchBucket('Only in ' + branchView.label, onlyHere, 'No paths exist only in this branch.')
             +      renderBranchBucket('Different schema only in ' + branchView.label, uniqueSchema, 'No uniquely-shaped paths in this branch.')
             +      renderBranchBucket('Shared with subset', sharedWithSubset, 'No subset-shared paths for this branch.')
@@ -1128,27 +1136,27 @@ function generateOneOfExplorerHtml(model) {
         var implementations = findPathImplementations(selectedUsage, selectedPathEntry.path);
 
         return ''
-          + '<section class="border border-zinc-800 bg-zinc-900 p-4">'
+          + '<section class="border border-slate-300 bg-white p-4">'
           + '  <div class="mb-3 flex flex-wrap items-center justify-between gap-2">'
-          + '    <div class="text-base font-semibold text-zinc-100">Path comparison: ' + escapeHtml(selectedPathEntry.path) + '</div>'
+          + '    <div class="text-base font-semibold text-slate-900">Path comparison: ' + escapeHtml(selectedPathEntry.path) + '</div>'
           + '  </div>'
-          + '  <div class="mb-3 text-sm leading-5 text-zinc-500">Compare this path side by side across the oneOf branches.</div>'
+          + '  <div class="mb-3 text-sm leading-5 text-slate-500">Compare this path side by side across the oneOf branches.</div>'
           + '  <div class="grid gap-3 overflow-x-auto" style="grid-template-columns: repeat(' + implementations.length + ', minmax(240px, 1fr));">'
           +      implementations.map(function (implementation) {
                    var schemaButton = implementation.ref
                      ? linkButton(implementation.label, 'data-branch-link="' + escapeHtml(implementation.label) + '"')
                      : escapeHtml(implementation.label);
                    return ''
-                     + '<div class="border border-zinc-800 bg-zinc-950 p-3">'
-                     + '  <div class="text-sm font-semibold text-zinc-100">' + schemaButton + '</div>'
+                     + '<div class="border border-slate-300 bg-slate-50 p-3">'
+                     + '  <div class="text-sm font-semibold text-slate-900">' + schemaButton + '</div>'
                      + '  <div class="mt-2 flex flex-wrap gap-1">'
                      +      (implementation.present ? chip(summaryText(implementation.summary), 'success') : chip('Missing', 'danger'))
                      +      (implementation.required ? chip('Required', 'accent') : '')
                      + '  </div>'
-                     +  (implementation.ref ? '<div class="mt-2 text-[12px] leading-5 text-zinc-500">Schema: ' + linkButton(implementation.ref, 'data-branch-link="' + escapeHtml(implementation.label) + '"') + '</div>' : '')
-                     + '  <details class="mt-3 border-t border-zinc-800 pt-3" open>'
-                     + '    <summary class="cursor-pointer text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Path schema</summary>'
-                     + '    <pre class="mt-2 overflow-auto border border-zinc-800 bg-black p-3 text-[11px] leading-5 text-zinc-200">' + formatJson(implementation.schema || { missing: true }) + '</pre>'
+                     +  (implementation.ref ? '<div class="mt-2 text-[12px] leading-5 text-slate-500">Schema: ' + linkButton(implementation.ref, 'data-branch-link="' + escapeHtml(implementation.label) + '"') + '</div>' : '')
+                     + '  <details class="mt-3 border-t border-slate-300 pt-3" open>'
+                     + '    <summary class="cursor-pointer text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Path schema</summary>'
+                     + '    <pre class="mt-2 overflow-auto border border-slate-300 bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">' + formatJson(implementation.schema || { missing: true }) + '</pre>'
                      + '  </details>'
                      + '</div>';
                  }).join('')
@@ -1162,20 +1170,20 @@ function generateOneOfExplorerHtml(model) {
           var title = branch.ref ? linkButton(branch.label, 'data-branch-link="' + escapeHtml(branch.label) + '"') : escapeHtml(branch.label);
 
           return ''
-            + '<div class="border p-3 ' + (isSelectedBranch ? 'border-cyan-500 bg-cyan-500/10' : 'border-zinc-800 bg-zinc-950') + '">'
-            + '  <div class="text-sm font-semibold text-zinc-100">' + title + '</div>'
+            + '<div class="border p-3 ' + (isSelectedBranch ? 'border-sky-500 bg-sky-50' : 'border-slate-300 bg-slate-50') + '">'
+            + '  <div class="text-sm font-semibold text-slate-900">' + title + '</div>'
             + '  <div class="mt-2 flex flex-wrap gap-1">'
             + '    ' + chip(summaryText(branch.summary), 'accent')
-            +      (branch.ref ? '<span class="inline-flex items-center border border-zinc-800 bg-zinc-900 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-400">' + linkButton(branch.ref, 'data-branch-link="' + escapeHtml(branch.label) + '"') + '</span>' : '')
+            +      (branch.ref ? '<span class="inline-flex items-center border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">' + linkButton(branch.ref, 'data-branch-link="' + escapeHtml(branch.label) + '"') + '</span>' : '')
             +      (branch.isObjectLike ? chip(branch.propertyCount + ' properties', 'success') : chip('raw schema summary', 'danger'))
             + '  </div>'
-            + '  <details class="mt-3 border-t border-zinc-800 pt-3"' + (compactMode ? '' : ' open') + '>'
-            + '    <summary class="cursor-pointer text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Resolved schema</summary>'
-            + '    <pre class="mt-2 overflow-auto border border-zinc-800 bg-black p-3 text-[11px] leading-5 text-zinc-200">' + formatJson(branch.displaySchema) + '</pre>'
+            + '  <details class="mt-3 border-t border-slate-300 pt-3"' + (compactMode ? '' : ' open') + '>'
+            + '    <summary class="cursor-pointer text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Resolved schema</summary>'
+            + '    <pre class="mt-2 overflow-auto border border-slate-300 bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">' + formatJson(branch.displaySchema) + '</pre>'
             + '  </details>'
-            + '  <details class="mt-3 border-t border-zinc-800 pt-3">'
-            + '    <summary class="cursor-pointer text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Original branch</summary>'
-            + '    <pre class="mt-2 overflow-auto border border-zinc-800 bg-black p-3 text-[11px] leading-5 text-zinc-200">' + formatJson(branch.rawDisplaySchema) + '</pre>'
+            + '  <details class="mt-3 border-t border-slate-300 pt-3">'
+            + '    <summary class="cursor-pointer text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Original branch</summary>'
+            + '    <pre class="mt-2 overflow-auto border border-slate-300 bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">' + formatJson(branch.rawDisplaySchema) + '</pre>'
             + '  </details>'
             + '</div>';
         }).join('');
@@ -1186,24 +1194,24 @@ function generateOneOfExplorerHtml(model) {
             var title = branch.ref ? linkButton(branch.label, 'data-branch-link="' + escapeHtml(branch.label) + '"') : escapeHtml(branch.label);
 
             return ''
-              + '<details class="border border-zinc-800 bg-zinc-950"' + (isSelectedBranch ? ' open' : '') + '>'
+              + '<details class="border border-slate-300 bg-slate-50"' + (isSelectedBranch ? ' open' : '') + '>'
               + '  <summary class="px-3 py-3">'
-              + '    <div class="text-sm font-semibold text-zinc-100">' + title + '</div>'
-              + '    <div class="mt-1 text-[12px] leading-5 text-zinc-500">' + escapeHtml(summaryText(branch.summary)) + '</div>'
+              + '    <div class="text-sm font-semibold text-slate-900">' + title + '</div>'
+              + '    <div class="mt-1 text-[12px] leading-5 text-slate-500">' + escapeHtml(summaryText(branch.summary)) + '</div>'
               + '  </summary>'
               + '  <div class="grid gap-3 px-3 pb-3">'
-              + '    <div class="border border-zinc-800 bg-zinc-900 p-3">'
+              + '    <div class="border border-slate-300 bg-white p-3">'
               + '      <div class="flex flex-wrap gap-1">'
-              +          (branch.ref ? '<span class="inline-flex items-center border border-zinc-800 bg-zinc-950 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-400">' + linkButton(branch.ref, 'data-branch-link="' + escapeHtml(branch.label) + '"') + '</span>' : '')
+              +          (branch.ref ? '<span class="inline-flex items-center border border-slate-300 bg-slate-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">' + linkButton(branch.ref, 'data-branch-link="' + escapeHtml(branch.label) + '"') + '</span>' : '')
               +          (branch.isObjectLike ? chip(branch.propertyCount + ' properties', 'success') : chip('raw schema summary', 'danger'))
               + '      </div>'
-              + '      <details class="mt-3 border-t border-zinc-800 pt-3"' + (compactMode ? '' : ' open') + '>'
-              + '        <summary class="cursor-pointer text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Resolved schema</summary>'
-              + '        <pre class="mt-2 overflow-auto border border-zinc-800 bg-black p-3 text-[11px] leading-5 text-zinc-200">' + formatJson(branch.displaySchema) + '</pre>'
+              + '      <details class="mt-3 border-t border-slate-300 pt-3"' + (compactMode ? '' : ' open') + '>'
+              + '        <summary class="cursor-pointer text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Resolved schema</summary>'
+              + '        <pre class="mt-2 overflow-auto border border-slate-300 bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">' + formatJson(branch.displaySchema) + '</pre>'
               + '      </details>'
-              + '      <details class="mt-3 border-t border-zinc-800 pt-3">'
-              + '        <summary class="cursor-pointer text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Original branch</summary>'
-              + '        <pre class="mt-2 overflow-auto border border-zinc-800 bg-black p-3 text-[11px] leading-5 text-zinc-200">' + formatJson(branch.rawDisplaySchema) + '</pre>'
+              + '      <details class="mt-3 border-t border-slate-300 pt-3">'
+              + '        <summary class="cursor-pointer text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Original branch</summary>'
+              + '        <pre class="mt-2 overflow-auto border border-slate-300 bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">' + formatJson(branch.rawDisplaySchema) + '</pre>'
               + '      </details>'
               + '    </div>'
               + '  </div>'
@@ -1217,9 +1225,9 @@ function generateOneOfExplorerHtml(model) {
       function renderDetail(selectedUsage) {
         if (!selectedUsage) {
           return ''
-            + '<div class="min-w-0 border border-zinc-800 bg-zinc-900">'
-            + '  <div class="border-b border-zinc-800 px-4 py-4"><h2 class="text-lg font-semibold text-zinc-100">No oneOf usage found</h2></div>'
-            + '  <div class="grid gap-3 p-4"><div class="border border-dashed border-zinc-800 bg-zinc-950 px-4 py-8 text-center text-sm text-zinc-500">This specification does not contain any oneOf nodes.</div></div>'
+            + '<div class="min-w-0 border border-slate-300 bg-white">'
+            + '  <div class="border-b border-slate-300 px-4 py-4"><h2 class="text-lg font-semibold text-slate-900">No oneOf usage found</h2></div>'
+            + '  <div class="grid gap-3 p-4"><div class="border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">This specification does not contain any oneOf nodes.</div></div>'
             + '</div>';
         }
 
@@ -1238,34 +1246,34 @@ function generateOneOfExplorerHtml(model) {
         }
 
         return ''
-          + '<div class="min-w-0 border border-zinc-800 bg-zinc-900">'
-          + '  <div class="sticky top-0 z-10 border-b border-zinc-800 bg-zinc-900/95 px-4 py-4 backdrop-blur">'
-          + '    <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">oneOf usage</div>'
-          + '    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-zinc-100">' + escapeHtml(context.primaryLabel || selectedUsage.path) + '</h1>'
-          +      (context.secondaryLabel ? '<div class="mt-1 text-sm text-zinc-500">' + escapeHtml(context.secondaryLabel) + '</div>' : '')
-          + '    <div class="mt-2 text-sm leading-5 text-zinc-500">Inspect shared fields, branch-specific fields, and the raw schemas behind this oneOf.</div>'
+          + '<div class="min-w-0 border border-slate-300 bg-white">'
+          + '  <div class="sticky top-0 z-10 border-b border-slate-300 bg-white/95 px-4 py-4 backdrop-blur">'
+          + '    <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">oneOf usage</div>'
+          + '    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-slate-900">' + escapeHtml(context.primaryLabel || selectedUsage.path) + '</h1>'
+          +      (context.secondaryLabel ? '<div class="mt-1 text-sm text-slate-500">' + escapeHtml(context.secondaryLabel) + '</div>' : '')
+          + '    <div class="mt-2 text-sm leading-5 text-slate-500">Inspect shared fields, branch-specific fields, and the raw schemas behind this oneOf.</div>'
           + '    <div class="mt-3 flex flex-wrap gap-1">' + chips.join('') + outlineButton('Copy pointer', false, 'data-copy-pointer="' + escapeHtml(selectedUsage.pointer) + '"') + '</div>'
-          + '    <div class="mt-2 break-all font-mono text-[11px] leading-5 text-zinc-500">' + escapeHtml(selectedUsage.pointer) + '</div>'
+          + '    <div class="mt-2 break-all font-mono text-[11px] leading-5 text-slate-500">' + escapeHtml(selectedUsage.pointer) + '</div>'
           + '  </div>'
           + '  <div class="grid gap-3 p-4">'
-          + '    <section class="border border-zinc-800 bg-zinc-950 p-4">'
-          + '      <div class="text-base font-semibold text-zinc-100">Comparison scope</div>'
-          + '      <p class="mt-2 text-sm leading-5 text-zinc-500">' + escapeHtml(comparisonTitle) + '</p>'
+          + '    <section class="border border-slate-300 bg-slate-50 p-4">'
+          + '      <div class="text-base font-semibold text-slate-900">Comparison scope</div>'
+          + '      <p class="mt-2 text-sm leading-5 text-slate-500">' + escapeHtml(comparisonTitle) + '</p>'
           + '      <div class="mt-3 flex flex-wrap gap-1">'
           + '        ' + chip(selectedUsage.fieldComparison.sharedPaths.length + ' shared paths', 'success')
           + '        ' + chip(selectedUsage.fieldComparison.nonSharedPathCount + ' branch-specific paths', 'danger')
           + '        ' + chip(state.uniqueVariantsOnly ? 'unique variants only' : 'all branches', 'neutral')
           + '      </div>'
           + '    </section>'
-          + '    <section class="border border-zinc-800 bg-zinc-900 p-4">'
-          + '      <div class="mb-3 text-base font-semibold text-zinc-100">Shared across all branches</div>'
+          + '    <section class="border border-slate-300 bg-white p-4">'
+          + '      <div class="mb-3 text-base font-semibold text-slate-900">Shared across all branches</div>'
           +        renderPathList(selectedUsage.fieldComparison.sharedPaths, 'shared', 'No shared flattened paths across every branch.')
           + '    </section>'
           +      renderBranchSpecificSections(selectedUsage.fieldComparison.branchViews)
           +      renderSelectedPath(selectedUsage)
-          + '    <section class="border border-zinc-800 bg-zinc-900 p-4">'
+          + '    <section class="border border-slate-300 bg-white p-4">'
           + '      <div class="mb-3 flex flex-wrap items-center justify-between gap-2">'
-          + '        <div class="text-base font-semibold text-zinc-100">Branches</div>'
+          + '        <div class="text-base font-semibold text-slate-900">Branches</div>'
           + '        <div class="flex flex-wrap gap-1">'
           +           outlineButton('Side by side', state.layout === 'side-by-side', 'data-layout="side-by-side"')
           +           outlineButton('Accordion', state.layout === 'accordion', 'data-layout="accordion"')
@@ -1275,9 +1283,9 @@ function generateOneOfExplorerHtml(model) {
           + '      </div>'
           +        renderBranches(selectedUsage, compactMode)
           + '    </section>'
-          + '    <section class="border border-zinc-800 bg-zinc-900 p-4">'
-          + '      <div class="mb-3 text-base font-semibold text-zinc-100">Raw oneOf definition</div>'
-          + '      <pre class="overflow-auto border border-zinc-800 bg-black p-3 text-[11px] leading-5 text-zinc-200">' + formatJson(selectedUsage.rawOneOf) + '</pre>'
+          + '    <section class="border border-slate-300 bg-white p-4">'
+          + '      <div class="mb-3 text-base font-semibold text-slate-900">Raw oneOf definition</div>'
+          + '      <pre class="overflow-auto border border-slate-300 bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">' + formatJson(selectedUsage.rawOneOf) + '</pre>'
           + '    </section>'
           + '  </div>'
           + '</div>';
@@ -1294,12 +1302,12 @@ function generateOneOfExplorerHtml(model) {
 
         app.innerHTML = ''
           + '<div class="grid min-h-screen gap-3 p-3 lg:grid-cols-[320px_minmax(0,1fr)]">'
-          + '  <aside class="top-3 flex min-h-0 flex-col overflow-hidden border border-zinc-800 bg-zinc-900 lg:sticky lg:h-[calc(100vh-1.5rem)]">'
-          + '    <div class="border-b border-zinc-800 px-4 py-4">'
-          + '      <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">OpenAPI explorer</div>'
-          + '      <h2 class="mt-2 text-xl font-semibold tracking-tight text-zinc-100">' + escapeHtml(data.specTitle) + '</h2>'
-          + '      <div class="mt-1 text-sm leading-5 text-zinc-500">Detected ' + data.totalOneOfCount + ' oneOf usage' + (data.totalOneOfCount === 1 ? '' : 's') + ' across the specification.</div>'
-          + '      <input class="mt-3 w-full border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-cyan-500 focus:outline-none" type="search" placeholder="Search oneOf usage" value="' + escapeHtml(state.query) + '" data-search-input="true" />'
+          + '  <aside class="top-3 flex min-h-0 flex-col overflow-hidden border border-slate-300 bg-white lg:sticky lg:h-[calc(100vh-1.5rem)]">'
+          + '    <div class="border-b border-slate-300 px-4 py-4">'
+          + '      <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">OpenAPI explorer</div>'
+          + '      <h2 class="mt-2 text-xl font-semibold tracking-tight text-slate-900">' + escapeHtml(data.specTitle) + '</h2>'
+          + '      <div class="mt-1 text-sm leading-5 text-slate-500">Detected ' + data.totalOneOfCount + ' oneOf usage' + (data.totalOneOfCount === 1 ? '' : 's') + ' across the specification.</div>'
+          + '      <input class="mt-3 w-full border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none" type="search" placeholder="Search oneOf usage" value="' + escapeHtml(state.query) + '" data-search-input="true" />'
           + '    </div>'
           + '    <div class="grid gap-2 overflow-auto p-3">' + renderUsageList(filteredUsages, selectedUsage) + '</div>'
           + '  </aside>'

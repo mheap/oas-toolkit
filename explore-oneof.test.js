@@ -489,8 +489,8 @@ describe("explore-oneof", () => {
     expect(html).toContain("Show only unique variants");
     expect(html).toContain("Shared across all branches");
     expect(html).toContain("Only in");
-    expect(html).toContain("defacto default");
-    expect(html).toContain("bg-zinc-950");
+    expect(html).toContain("Defacto default");
+    expect(html).toContain("bg-slate-100");
     expect(html).toContain("config.instance");
     expect(html).toContain("variants");
     expect(html).toContain("[]");
