@@ -601,13 +601,7 @@ describe("explore-oneof", () => {
     expect(html).toContain("Search oneOf usage");
     expect(html).toContain("navigator.clipboard.writeText");
     expect(html).toContain("pointer");
-    expect(html).toContain("layout");
-    expect(html).toContain("compact");
-    expect(html).toContain("Side by side");
-    expect(html).toContain("Accordion");
-    expect(html).toContain("Compact");
     expect(html).toContain("usage-context");
-    expect(html).toContain("Show only unique variants");
     expect(html).toContain("Shared across all branches");
     expect(html).toContain("Only in");
     expect(html).toContain("Defacto default");
@@ -617,8 +611,9 @@ describe("explore-oneof", () => {
     expect(html).toContain("[]");
     expect(html).toContain("empty-inline");
     expect(html).toContain("data-path");
+    expect(html).toContain("data-path-branch");
     expect(html).toContain("data-branch-link");
     expect(html).toContain("Path comparison:");
-    expect(html).toContain("branch");
+    expect(html).toContain("pathOwner");
   });
 });

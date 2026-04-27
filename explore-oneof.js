@@ -839,6 +839,7 @@ function generateOneOfExplorerHtml(model) {
         compact: null,
         uniqueVariantsOnly: false,
         selectedPath: null,
+        selectedPathOwnerLabel: null,
         selectedBranchLabel: null
       };
 
@@ -941,6 +942,7 @@ function generateOneOfExplorerHtml(model) {
         var compact = params.get("compact");
         var variants = params.get("variants");
         var selectedPath = params.get("path");
+        var selectedPathOwnerLabel = params.get("pathOwner");
         var selectedBranchLabel = params.get("branch");
         if (pointer) state.selectedPointer = pointer;
         if (layout === "accordion" || layout === "side-by-side") state.layout = layout;
@@ -948,6 +950,7 @@ function generateOneOfExplorerHtml(model) {
         if (compact === "0") state.compact = false;
         state.uniqueVariantsOnly = variants === "unique";
         state.selectedPath = selectedPath;
+        state.selectedPathOwnerLabel = selectedPathOwnerLabel;
         state.selectedBranchLabel = selectedBranchLabel;
       }
 
@@ -958,6 +961,7 @@ function generateOneOfExplorerHtml(model) {
         if (state.compact !== null) params.set("compact", state.compact ? "1" : "0");
         if (state.uniqueVariantsOnly) params.set("variants", "unique");
         if (state.selectedPath) params.set("path", state.selectedPath);
+        if (state.selectedPathOwnerLabel) params.set("pathOwner", state.selectedPathOwnerLabel);
         if (state.selectedBranchLabel) params.set("branch", state.selectedBranchLabel);
         var nextHash = params.toString();
         if (window.location.hash.slice(1) !== nextHash) {
@@ -1001,7 +1005,7 @@ function generateOneOfExplorerHtml(model) {
         }).join('');
       }
 
-      function renderPathEntry(pathEntry, mode) {
+      function renderPathEntry(pathEntry, mode, ownerLabel) {
         var badges = [];
         if (pathEntry.isDeFactoDefault) {
           badges.push(chip('Defacto default', 'warning'));
@@ -1027,6 +1031,8 @@ function generateOneOfExplorerHtml(model) {
           + '  <summary class="cursor-pointer text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">' + schemaLabel + '</summary>'
           + '  <pre class="mt-2 overflow-auto border border-slate-300 bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">' + formatJson(pathEntry.schema || { summary: pathEntry.summary }) + '</pre>'
           + '</details>';
+        var pathAttrs = 'data-path="' + escapeHtml(pathEntry.path) + '"'
+          + (ownerLabel ? ' data-path-branch="' + escapeHtml(ownerLabel) + '"' : '');
 
         if (pathEntry.isDeFactoDefault && mode === 'branch') {
           return ''
@@ -1034,7 +1040,7 @@ function generateOneOfExplorerHtml(model) {
             + '  <summary class="cursor-pointer list-none">'
             + '    <div class="flex items-start justify-between gap-3">'
             + '      <div class="min-w-0">'
-            + '        <div class="font-mono text-[12px] font-semibold leading-5 text-slate-900">' + linkButton(pathEntry.path, 'data-path="' + escapeHtml(pathEntry.path) + '"', 'w-full') + '</div>'
+            + '        <div class="font-mono text-[12px] font-semibold leading-5 text-slate-900">' + linkButton(pathEntry.path, pathAttrs, 'w-full') + '</div>'
             + '        <div class="mt-1 text-[12px] leading-5 text-slate-500">' + escapeHtml(summaryText(pathEntry.summary)) + '</div>'
             + '      </div>'
             + '      <div class="shrink-0 text-[10px] uppercase tracking-[0.14em] text-slate-400">collapsed</div>'
@@ -1047,20 +1053,20 @@ function generateOneOfExplorerHtml(model) {
 
         return ''
           + '<div class="' + cardClass + '">'
-          + '  <div class="font-mono text-[12px] font-semibold leading-5 text-slate-900">' + linkButton(pathEntry.path, 'data-path="' + escapeHtml(pathEntry.path) + '"', 'w-full') + '</div>'
+          + '  <div class="font-mono text-[12px] font-semibold leading-5 text-slate-900">' + linkButton(pathEntry.path, pathAttrs, 'w-full') + '</div>'
           + '  <div class="mt-2 flex flex-wrap gap-1">' + badges.join('') + '</div>'
           + '  <div class="mt-1 text-[12px] leading-5 text-slate-500">' + escapeHtml(summaryText(pathEntry.summary)) + '</div>'
           +      schemaBlock
           + '</div>';
       }
 
-      function renderPathList(entries, mode, emptyText) {
+      function renderPathList(entries, mode, emptyText, ownerLabel) {
         if (!entries.length) {
           return '<div class="empty-inline border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-center text-sm text-slate-500">' + escapeHtml(emptyText) + '</div>';
         }
 
         return '<div class="grid gap-2">' + entries.map(function (entry) {
-          return renderPathEntry(entry, mode);
+          return renderPathEntry(entry, mode, ownerLabel);
         }).join('') + '</div>';
       }
 
@@ -1080,7 +1086,7 @@ function generateOneOfExplorerHtml(model) {
         });
       }
 
-      function renderBranchBucket(title, entries, emptyText, mode) {
+      function renderBranchBucket(title, entries, emptyText, mode, ownerLabel) {
         if (!entries.length) {
           return '';
         }
@@ -1088,7 +1094,7 @@ function generateOneOfExplorerHtml(model) {
         return ''
           + '<section class="border border-slate-300 bg-slate-50">'
           + '  <div class="border-b border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-700">' + escapeHtml(title) + '</div>'
-          + '  <div class="grid gap-2 p-3">' + renderPathList(entries, mode || 'branch', emptyText) + '</div>'
+          + '  <div class="grid gap-2 p-3">' + renderPathList(entries, mode || 'branch', emptyText, ownerLabel) + '</div>'
           + '</section>';
       }
 
@@ -1122,12 +1128,20 @@ function generateOneOfExplorerHtml(model) {
             +      (emptyMessages.length ? '<ul class="ml-5 list-disc text-sm text-slate-500">' + emptyMessages.map(function (message) {
                      return '<li>' + escapeHtml(message) + '</li>';
                    }).join('') + '</ul>' : '')
-            +        renderBranchBucket('Only in ' + branchView.shortLabel, onlyHere, 'No ' + branchView.shortLabel + ' only properties', 'branch-only')
-            +        renderBranchBucket('Different schema only in ' + branchView.shortLabel, uniqueSchema, 'No properties with a different schema', 'branch-different')
-            +        renderBranchBucket('Shared with subset', sharedWithSubset, 'No subset-shared paths for this branch.', 'branch-subset')
+            +        renderBranchBucket('Only in ' + branchView.shortLabel, onlyHere, 'No ' + branchView.shortLabel + ' only properties', 'branch-only', branchView.label)
+            +        renderBranchBucket('Different schema only in ' + branchView.shortLabel, uniqueSchema, 'No properties with a different schema', 'branch-different', branchView.label)
+            +        renderBranchBucket('Shared with subset', sharedWithSubset, 'No subset-shared paths for this branch.', 'branch-subset', branchView.label)
             + '  </div>'
             + '</details>';
         }).join('');
+      }
+
+      function getBranchShortLabel(selectedUsage, label) {
+        var branch = selectedUsage.branches.find(function (candidate) {
+          return candidate.label === label;
+        });
+
+        return branch ? (branch.shortLabel || branch.label) : label;
       }
 
       function findPathImplementations(selectedUsage, path) {
@@ -1177,6 +1191,26 @@ function generateOneOfExplorerHtml(model) {
           return null;
         }
 
+        if (state.selectedPathOwnerLabel) {
+          var branchView = (selectedUsage.fieldComparison.branchViews || []).find(function (candidate) {
+            return candidate.label === state.selectedPathOwnerLabel;
+          });
+
+          if (branchView) {
+            var branchEntries = []
+              .concat(branchView.onlyHere || [])
+              .concat(branchView.uniqueSchema || [])
+              .concat(branchView.sharedWithSubset || []);
+            var ownedEntry = branchEntries.find(function (entry) {
+              return entry.path === state.selectedPath;
+            });
+
+            if (ownedEntry) {
+              return ownedEntry;
+            }
+          }
+        }
+
         var allEntries = (selectedUsage.fieldComparison.sharedPaths || []).slice();
         (selectedUsage.fieldComparison.branchViews || []).forEach(function (branchView) {
           allEntries = allEntries
@@ -1196,94 +1230,71 @@ function generateOneOfExplorerHtml(model) {
           return '';
         }
 
-        var implementations = findPathImplementations(selectedUsage, selectedPathEntry.path);
+        var ownerLabel = state.selectedPathOwnerLabel;
+        var ownerShortLabel = ownerLabel ? getBranchShortLabel(selectedUsage, ownerLabel) : null;
+        var peers = (selectedPathEntry.peers || []).map(function (label) {
+          return getBranchShortLabel(selectedUsage, label);
+        }).filter(function (label) {
+          return label !== ownerShortLabel;
+        });
+        var presentIn = (selectedPathEntry.presentIn || []).map(function (label) {
+          return getBranchShortLabel(selectedUsage, label);
+        });
+        var branchSchemas = selectedPathEntry.branchSchemas || [];
+        var summaryItems = [];
+        var sharedWith = [];
+        var missingFrom = selectedPathEntry.missingIn || [];
+        var differentSchema = [];
+
+        if (branchSchemas.length) {
+          sharedWith = branchSchemas.filter(function (entry) {
+            return entry.present;
+          }).map(function (entry) {
+            return entry.shortLabel || getBranchShortLabel(selectedUsage, entry.label);
+          });
+        } else {
+          sharedWith = peers;
+          differentSchema = presentIn.filter(function (label) {
+            return label !== ownerShortLabel && sharedWith.indexOf(label) === -1;
+          });
+        }
+
+        if (sharedWith.length) {
+          summaryItems.push({
+            label: 'Shared with',
+            values: sharedWith,
+          });
+        }
+
+        if (missingFrom.length) {
+          summaryItems.push({
+            label: 'Missing from',
+            values: missingFrom,
+          });
+        }
+
+        if (differentSchema.length) {
+          summaryItems.push({
+            label: 'Different schema',
+            values: differentSchema,
+          });
+        }
 
         return ''
           + '<section class="border border-slate-300 bg-white p-4">'
           + '  <div class="mb-3 flex flex-wrap items-center justify-between gap-2">'
           + '    <div class="text-base font-semibold text-slate-900">Path comparison: ' + escapeHtml(selectedPathEntry.path) + '</div>'
           + '  </div>'
-          + '  <div class="mb-3 text-sm leading-5 text-slate-500">Compare this path side by side across the oneOf branches.</div>'
-          + '  <div class="grid gap-3 overflow-x-auto" style="grid-template-columns: repeat(' + implementations.length + ', minmax(240px, 1fr));">'
-          +      implementations.map(function (implementation) {
-                   var schemaButton = implementation.ref
-                     ? linkButton(implementation.label, 'data-branch-link="' + escapeHtml(implementation.label) + '"')
-                     : escapeHtml(implementation.label);
-                   return ''
-                     + '<div class="border border-slate-300 bg-slate-50 p-3">'
-                     + '  <div class="text-sm font-semibold text-slate-900">' + schemaButton + '</div>'
-                     + '  <div class="mt-2 flex flex-wrap gap-1">'
-                     +      (implementation.present ? chip(summaryText(implementation.summary), 'success') : chip('Missing', 'danger'))
-                     +      (implementation.required ? chip('Required', 'accent') : '')
-                     +      (implementation.peers && implementation.peers.length ? chip('Shared with ' + implementation.peers.join(', '), 'success') : '')
-                     + '  </div>'
-                     +  (implementation.ref ? '<div class="mt-2 text-[12px] leading-5 text-slate-500">Schema: ' + linkButton(implementation.ref, 'data-branch-link="' + escapeHtml(implementation.label) + '"') + '</div>' : '')
-                     + '  <details class="mt-3 border-t border-slate-300 pt-3">'
-                     + '    <summary class="cursor-pointer text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Path schema</summary>'
-                     + '    <pre class="mt-2 overflow-auto border border-slate-300 bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">' + formatJson(implementation.schema || { missing: true }) + '</pre>'
-                     + '  </details>'
-                     + '</div>';
+          + '  <ul class="ml-5 list-disc text-sm leading-6 text-slate-600">'
+          +      summaryItems.map(function (item) {
+                   return '<li><span class="font-medium text-slate-900">' + escapeHtml(item.label) + ':</span> ' + escapeHtml(item.values.join(', ')) + '</li>';
                  }).join('')
-          + '  </div>'
+          + '  </ul>'
+          + '  <details class="mt-3 border-t border-slate-300 pt-3">'
+          + '    <summary class="cursor-pointer text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Path schema</summary>'
+          + '    <pre class="mt-2 overflow-auto border border-slate-300 bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">' + formatJson(selectedPathEntry.schema || { summary: selectedPathEntry.summary }) + '</pre>'
+          + '  </details>'
           + '</section>';
-      }
-
-      function renderBranches(selectedUsage, compactMode) {
-        var branchCards = selectedUsage.branches.map(function (branch) {
-          var isSelectedBranch = state.selectedBranchLabel === branch.label;
-          var title = branch.ref ? linkButton(branch.label, 'data-branch-link="' + escapeHtml(branch.label) + '"') : escapeHtml(branch.label);
-
-          return ''
-            + '<div class="border p-3 ' + (isSelectedBranch ? 'border-sky-500 bg-sky-50' : 'border-slate-300 bg-slate-50') + '">'
-            + '  <div class="text-sm font-semibold text-slate-900">' + title + '</div>'
-            + '  <div class="mt-2 flex flex-wrap gap-1">'
-            + '    ' + chip(summaryText(branch.summary), 'accent')
-            +      (branch.ref ? '<span class="inline-flex items-center border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">' + linkButton(branch.ref, 'data-branch-link="' + escapeHtml(branch.label) + '"') + '</span>' : '')
-            +      (branch.isObjectLike ? chip(branch.propertyCount + ' properties', 'success') : chip('raw schema summary', 'danger'))
-            + '  </div>'
-            + '  <details class="mt-3 border-t border-slate-300 pt-3"' + (compactMode ? '' : ' open') + '>'
-            + '    <summary class="cursor-pointer text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Resolved schema</summary>'
-            + '    <pre class="mt-2 overflow-auto border border-slate-300 bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">' + formatJson(branch.displaySchema) + '</pre>'
-            + '  </details>'
-            + '  <details class="mt-3 border-t border-slate-300 pt-3">'
-            + '    <summary class="cursor-pointer text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Original branch</summary>'
-            + '    <pre class="mt-2 overflow-auto border border-slate-300 bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">' + formatJson(branch.rawDisplaySchema) + '</pre>'
-            + '  </details>'
-            + '</div>';
-        }).join('');
-
-        if (state.layout === 'accordion') {
-          return selectedUsage.branches.map(function (branch) {
-            var isSelectedBranch = state.selectedBranchLabel === branch.label;
-            var title = branch.ref ? linkButton(branch.label, 'data-branch-link="' + escapeHtml(branch.label) + '"') : escapeHtml(branch.label);
-
-            return ''
-              + '<details class="border border-slate-300 bg-slate-50"' + (isSelectedBranch ? ' open' : '') + '>'
-              + '  <summary class="px-3 py-3">'
-              + '    <div class="text-sm font-semibold text-slate-900">' + title + '</div>'
-              + '    <div class="mt-1 text-[12px] leading-5 text-slate-500">' + escapeHtml(summaryText(branch.summary)) + '</div>'
-              + '  </summary>'
-              + '  <div class="grid gap-3 px-3 pb-3">'
-              + '    <div class="border border-slate-300 bg-white p-3">'
-              + '      <div class="flex flex-wrap gap-1">'
-              +          (branch.ref ? '<span class="inline-flex items-center border border-slate-300 bg-slate-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">' + linkButton(branch.ref, 'data-branch-link="' + escapeHtml(branch.label) + '"') + '</span>' : '')
-              +          (branch.isObjectLike ? chip(branch.propertyCount + ' properties', 'success') : chip('raw schema summary', 'danger'))
-              + '      </div>'
-              + '      <details class="mt-3 border-t border-slate-300 pt-3"' + (compactMode ? '' : ' open') + '>'
-              + '        <summary class="cursor-pointer text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Resolved schema</summary>'
-              + '        <pre class="mt-2 overflow-auto border border-slate-300 bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">' + formatJson(branch.displaySchema) + '</pre>'
-              + '      </details>'
-              + '      <details class="mt-3 border-t border-slate-300 pt-3">'
-              + '        <summary class="cursor-pointer text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">Original branch</summary>'
-              + '        <pre class="mt-2 overflow-auto border border-slate-300 bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">' + formatJson(branch.rawDisplaySchema) + '</pre>'
-              + '      </details>'
-              + '    </div>'
-              + '  </div>'
-              + '</details>';
-          }).join('');
-        }
-
-        return '<div class="grid gap-3 overflow-x-auto" style="grid-template-columns: repeat(' + selectedUsage.branches.length + ', minmax(240px, 1fr));">' + branchCards + '</div>';
       }
 
       function renderDetail(selectedUsage) {
@@ -1296,14 +1307,12 @@ function generateOneOfExplorerHtml(model) {
         }
 
         var context = selectedUsage.context || {};
-        var compactMode = isCompactMode(selectedUsage);
         var comparisonTitle = selectedUsage.fieldComparison.scope.skippedBranchLabels.length
           ? 'Flattened path comparison covers ' + selectedUsage.fieldComparison.scope.objectBranchCount + ' object-like branches. '
               + selectedUsage.fieldComparison.scope.skippedBranchLabels.length + ' branch' + (selectedUsage.fieldComparison.scope.skippedBranchLabels.length === 1 ? ' is' : 'es are') + ' shown as raw schema summaries.'
           : 'Flattened path comparison covers every branch in this oneOf.';
 
         var chips = [chip(selectedUsage.branchCount + ' branches', 'success')];
-        if (compactMode) chips.push(chip('compact mode', 'neutral'));
         (context.chips || []).forEach(function (item) { chips.push(chip(item, 'neutral')); });
         if (selectedUsage.discriminator && selectedUsage.discriminator.propertyName) {
           chips.push(chip('discriminator: ' + selectedUsage.discriminator.propertyName, 'accent'));
@@ -1331,22 +1340,10 @@ function generateOneOfExplorerHtml(model) {
           + '    </section>'
           + '    <section class="border border-slate-300 bg-white p-4">'
           + '      <div class="mb-3 text-base font-semibold text-slate-900">Shared across all branches</div>'
-          +        renderPathList(selectedUsage.fieldComparison.sharedPaths, 'shared', 'No shared flattened paths across every branch.')
+          +        renderPathList(selectedUsage.fieldComparison.sharedPaths, 'shared', 'No shared flattened paths across every branch.', null)
           + '    </section>'
           +      renderBranchSpecificSections(selectedUsage.fieldComparison.branchViews)
           +      renderSelectedPath(selectedUsage)
-          + '    <section class="border border-slate-300 bg-white p-4">'
-          + '      <div class="mb-3 flex flex-wrap items-center justify-between gap-2">'
-          + '        <div class="text-base font-semibold text-slate-900">Branches</div>'
-          + '        <div class="flex flex-wrap gap-1">'
-          +           outlineButton('Side by side', state.layout === 'side-by-side', 'data-layout="side-by-side"')
-          +           outlineButton('Accordion', state.layout === 'accordion', 'data-layout="accordion"')
-          +           outlineButton('Compact', compactMode, 'data-compact="toggle"')
-          +           outlineButton('Show only unique variants', state.uniqueVariantsOnly, 'data-variants="toggle"')
-          + '        </div>'
-          + '      </div>'
-          +        renderBranches(selectedUsage, compactMode)
-          + '    </section>'
           + '    <section class="border border-slate-300 bg-white p-4">'
           + '      <div class="mb-3 text-base font-semibold text-slate-900">Raw oneOf definition</div>'
           + '      <pre class="overflow-auto border border-slate-300 bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">' + formatJson(selectedUsage.rawOneOf) + '</pre>'
@@ -1415,6 +1412,7 @@ function generateOneOfExplorerHtml(model) {
         var pathButton = event.target.closest('[data-path]');
         if (pathButton) {
           state.selectedPath = pathButton.getAttribute('data-path');
+          state.selectedPathOwnerLabel = pathButton.getAttribute('data-path-branch');
           writeHashState();
           render();
           return;
