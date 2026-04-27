@@ -477,5 +477,10 @@ describe("explore-oneof", () => {
     expect(html).toContain("config.instance");
     expect(html).toContain("variants");
     expect(html).toContain("[]");
+    expect(html).toContain("empty-inline");
+    expect(html).toContain("data-path");
+    expect(html).toContain("data-branch-link");
+    expect(html).toContain("Path comparison:");
+    expect(html).toContain("branch");
   });
 });

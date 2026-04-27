@@ -15,5 +15,7 @@ describe("explore-oneof command html", () => {
     expect(html).toContain("data-compact");
     expect(html).toContain("data-variants");
     expect(html).toContain("usage-context");
+    expect(html).toContain("data-path");
+    expect(html).toContain("data-branch-link");
   });
 });

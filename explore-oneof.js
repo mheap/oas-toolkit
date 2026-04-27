@@ -759,458 +759,9 @@ function generateOneOfExplorerHtml(model) {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${escapeHtml(title)}</title>
-  <style>
-    :root {
-      color-scheme: light;
-      --bg: #f5f7fb;
-      --panel: #ffffff;
-      --panel-alt: #f8fafc;
-      --text: #14213d;
-      --muted: #5c6b80;
-      --border: #d8e0ec;
-      --accent: #4f46e5;
-      --accent-soft: #eef2ff;
-      --danger: #b42318;
-      --danger-soft: #fef3f2;
-      --success: #027a48;
-      --success-soft: #ecfdf3;
-      --shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
-      --radius: 18px;
-      --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
-
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      background: linear-gradient(180deg, #eef2ff 0%, var(--bg) 16%, var(--bg) 100%);
-      color: var(--text);
-    }
-
-    button, input { font: inherit; }
-
-    .shell {
-      display: grid;
-      grid-template-columns: 360px minmax(0, 1fr);
-      min-height: 100vh;
-      gap: 24px;
-      padding: 24px;
-    }
-
-    .sidebar, .detail {
-      background: rgba(255, 255, 255, 0.85);
-      backdrop-filter: blur(14px);
-      border: 1px solid rgba(216, 224, 236, 0.8);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow: hidden;
-    }
-
-    .sidebar {
-      display: flex;
-      flex-direction: column;
-      min-height: calc(100vh - 48px);
-      position: sticky;
-      top: 24px;
-    }
-
-    .sidebar-header, .detail-header {
-      padding: 24px;
-      border-bottom: 1px solid var(--border);
-      background: rgba(255, 255, 255, 0.78);
-    }
-
-    .eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 12px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--muted);
-      font-weight: 700;
-    }
-
-    h1, h2, h3 {
-      margin: 0;
-      line-height: 1.1;
-    }
-
-    h1 {
-      font-size: 26px;
-      margin-top: 10px;
-    }
-
-    .subtle {
-      color: var(--muted);
-      margin-top: 10px;
-      line-height: 1.5;
-    }
-
-    .search {
-      width: 100%;
-      margin-top: 18px;
-      border-radius: 14px;
-      border: 1px solid var(--border);
-      background: var(--panel-alt);
-      padding: 12px 14px;
-      color: var(--text);
-    }
-
-    .usage-list {
-      padding: 14px;
-      overflow: auto;
-      display: grid;
-      gap: 10px;
-    }
-
-    .usage-item {
-      width: 100%;
-      text-align: left;
-      border: 1px solid var(--border);
-      background: var(--panel);
-      border-radius: 16px;
-      padding: 16px;
-      cursor: pointer;
-      transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
-    }
-
-    .usage-item:hover, .usage-item:focus-visible {
-      border-color: rgba(79, 70, 229, 0.35);
-      box-shadow: 0 10px 24px rgba(79, 70, 229, 0.12);
-      transform: translateY(-1px);
-      outline: none;
-    }
-
-    .usage-item.active {
-      border-color: var(--accent);
-      background: linear-gradient(180deg, #ffffff 0%, var(--accent-soft) 100%);
-    }
-
-    .usage-path {
-      font-family: var(--mono);
-      font-size: 12px;
-      line-height: 1.55;
-      word-break: break-word;
-      margin-top: 10px;
-      color: var(--muted);
-    }
-
-    .usage-context {
-      font-size: 15px;
-      font-weight: 700;
-      line-height: 1.35;
-    }
-
-    .usage-subtle {
-      margin-top: 6px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .usage-meta, .chip-row, .stats {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 12px;
-    }
-
-    .chip, .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      line-height: 1;
-      border: 1px solid transparent;
-      background: var(--panel-alt);
-      color: var(--muted);
-      white-space: nowrap;
-    }
-
-    .chip.accent, .badge.accent { background: var(--accent-soft); color: var(--accent); }
-    .chip.success, .badge.success { background: var(--success-soft); color: var(--success); }
-    .chip.danger, .badge.danger { background: var(--danger-soft); color: var(--danger); }
-
-    .detail {
-      display: flex;
-      flex-direction: column;
-      min-width: 0;
-    }
-
-    .detail-header {
-      position: sticky;
-      top: 24px;
-      z-index: 2;
-    }
-
-    .detail-body {
-      padding: 24px;
-      display: grid;
-      gap: 20px;
-    }
-
-    .section {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 20px;
-      overflow: hidden;
-    }
-
-    .section-header {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
-    }
-
-    .section-title {
-      font-size: 18px;
-      font-weight: 700;
-    }
-
-    .section-note {
-      color: var(--muted);
-      line-height: 1.5;
-      margin: 0 0 16px;
-    }
-
-    .toolbar {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .toolbar button, .copy-button {
-      border: 1px solid var(--border);
-      background: var(--panel);
-      color: var(--text);
-      border-radius: 12px;
-      padding: 10px 14px;
-      cursor: pointer;
-    }
-
-    .toolbar button.active {
-      border-color: var(--accent);
-      color: var(--accent);
-      background: var(--accent-soft);
-    }
-
-    .compact-mode .section {
-      padding-top: 14px;
-      padding-bottom: 14px;
-    }
-
-    .compact-mode .field-card summary,
-    .compact-mode .field-card-body {
-      padding-top: 12px;
-      padding-bottom: 12px;
-    }
-
-    .compact-mode .branch-card,
-    .compact-mode .field-branch {
-      padding: 12px;
-    }
-
-    .compact-mode .chip-row,
-    .compact-mode .stats {
-      gap: 6px;
-      margin-top: 8px;
-    }
-
-    .compact-mode pre {
-      font-size: 11px;
-      max-height: 220px;
-    }
-
-    .pointer {
-      font-family: var(--mono);
-      font-size: 12px;
-      color: var(--muted);
-      word-break: break-all;
-      margin-top: 10px;
-    }
-
-    .table-wrap {
-      overflow: auto;
-      border: 1px solid var(--border);
-      border-radius: 16px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      min-width: 720px;
-    }
-
-    th, td {
-      padding: 14px 16px;
-      border-bottom: 1px solid var(--border);
-      vertical-align: top;
-      text-align: left;
-    }
-
-    th {
-      background: var(--panel-alt);
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--muted);
-    }
-
-    tbody tr:last-child td { border-bottom: 0; }
-
-    .field-name {
-      font-weight: 700;
-      margin-bottom: 6px;
-    }
-
-    .field-summary, .inline-summary {
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.5;
-    }
-
-    .field-card {
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      overflow: hidden;
-      background: var(--panel-alt);
-    }
-
-    .field-card + .field-card { margin-top: 12px; }
-
-    .field-card summary {
-      list-style: none;
-      cursor: pointer;
-      padding: 16px;
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 16px;
-    }
-
-    .field-card summary::-webkit-details-marker { display: none; }
-
-    .field-card-body {
-      padding: 0 16px 16px;
-      display: grid;
-      gap: 16px;
-    }
-
-    .branch-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 14px;
-    }
-
-    .branch-grid.side-by-side {
-      grid-template-columns: repeat(var(--branch-count), minmax(280px, 1fr));
-      overflow-x: auto;
-    }
-
-    .branch-card, .field-branch {
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      background: var(--panel);
-      padding: 16px;
-      min-width: 0;
-    }
-
-    .field-branch.missing {
-      background: #fff7ed;
-      border-color: #fed7aa;
-    }
-
-    .field-branch-title {
-      font-weight: 700;
-      margin-bottom: 10px;
-    }
-
-    .path-list {
-      display: grid;
-      gap: 10px;
-    }
-
-    .path-row {
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      background: var(--panel-alt);
-      padding: 12px 14px;
-    }
-
-    .path-name {
-      font-family: var(--mono);
-      font-size: 13px;
-      font-weight: 700;
-      line-height: 1.4;
-      word-break: break-word;
-    }
-
-    .path-meta {
-      margin-top: 8px;
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.5;
-    }
-
-    details.raw {
-      border-top: 1px solid var(--border);
-      margin-top: 14px;
-      padding-top: 14px;
-    }
-
-    details.raw summary {
-      cursor: pointer;
-      color: var(--muted);
-      font-weight: 600;
-    }
-
-    pre {
-      margin: 12px 0 0;
-      padding: 14px;
-      background: #0f172a;
-      color: #e2e8f0;
-      border-radius: 14px;
-      overflow: auto;
-      font-size: 12px;
-      line-height: 1.55;
-      font-family: var(--mono);
-    }
-
-    .empty {
-      padding: 40px 24px;
-      text-align: center;
-      color: var(--muted);
-    }
-
-    .nested {
-      border-left: 3px solid rgba(79, 70, 229, 0.12);
-      padding-left: 14px;
-      margin-top: 14px;
-    }
-
-    @media (max-width: 1080px) {
-      .shell {
-        grid-template-columns: 1fr;
-      }
-
-      .sidebar {
-        position: static;
-        min-height: 0;
-      }
-
-      .detail-header {
-        position: static;
-      }
-    }
-  </style>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
+<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
   <div id="app"></div>
   <script>
     window.__ONEOF_EXPLORER_DATA__ = ${payload};
@@ -1223,7 +774,9 @@ function generateOneOfExplorerHtml(model) {
         selectedPointer: null,
         layout: "side-by-side",
         compact: null,
-        uniqueVariantsOnly: false
+        uniqueVariantsOnly: false,
+        selectedPath: null,
+        selectedBranchLabel: null
       };
 
       function escapeHtml(value) {
@@ -1274,6 +827,24 @@ function generateOneOfExplorerHtml(model) {
         return searchable.indexOf(query.toLowerCase()) !== -1;
       }
 
+      function chip(text, tone) {
+        var styles = {
+          neutral: "bg-slate-100 text-slate-600",
+          success: "bg-emerald-50 text-emerald-700",
+          danger: "bg-rose-50 text-rose-700",
+          accent: "bg-indigo-50 text-indigo-700"
+        };
+        return '<span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ' + (styles[tone || "neutral"] || styles.neutral) + '">' + escapeHtml(text) + '</span>';
+      }
+
+      function outlineButton(label, active, attrs) {
+        return '<button ' + attrs + ' class="rounded-full border px-2.5 py-1 text-[11px] font-medium ' + (active ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50') + '">' + escapeHtml(label) + '</button>';
+      }
+
+      function linkButton(label, attrs, extraClasses) {
+        return '<button ' + attrs + ' class="cursor-pointer text-left text-indigo-700 underline underline-offset-2 hover:text-indigo-600 ' + (extraClasses || '') + '">' + escapeHtml(label) + '</button>';
+      }
+
       function getFilteredUsages() {
         return data.oneOfUsages.filter(function (usage) {
           return branchMatchesQuery(usage, state.query);
@@ -1301,11 +872,15 @@ function generateOneOfExplorerHtml(model) {
         var layout = params.get("layout");
         var compact = params.get("compact");
         var variants = params.get("variants");
+        var selectedPath = params.get("path");
+        var selectedBranchLabel = params.get("branch");
         if (pointer) state.selectedPointer = pointer;
         if (layout === "accordion" || layout === "side-by-side") state.layout = layout;
         if (compact === "1") state.compact = true;
         if (compact === "0") state.compact = false;
         state.uniqueVariantsOnly = variants === "unique";
+        state.selectedPath = selectedPath;
+        state.selectedBranchLabel = selectedBranchLabel;
       }
 
       function writeHashState() {
@@ -1314,6 +889,8 @@ function generateOneOfExplorerHtml(model) {
         if (state.layout) params.set("layout", state.layout);
         if (state.compact !== null) params.set("compact", state.compact ? "1" : "0");
         if (state.uniqueVariantsOnly) params.set("variants", "unique");
+        if (state.selectedPath) params.set("path", state.selectedPath);
+        if (state.selectedBranchLabel) params.set("branch", state.selectedBranchLabel);
         var nextHash = params.toString();
         if (window.location.hash.slice(1) !== nextHash) {
           window.location.hash = nextHash;
@@ -1330,65 +907,66 @@ function generateOneOfExplorerHtml(model) {
 
       function renderUsageList(filteredUsages, selectedUsage) {
         if (!filteredUsages.length) {
-          return '<div class="empty">No oneOf usages match this search.</div>';
+          return '<div class="rounded-xl border border-dashed border-slate-300 bg-white/70 px-4 py-8 text-center text-sm text-slate-500">No oneOf usages match this search.</div>';
         }
 
         return filteredUsages.map(function (usage) {
-          var active = selectedUsage && usage.pointer === selectedUsage.pointer ? " active" : "";
+          var active = selectedUsage && usage.pointer === selectedUsage.pointer;
           var context = usage.context || {};
-          var discriminator = usage.discriminator && usage.discriminator.propertyName
-            ? '<span class="chip accent">discriminator: ' + escapeHtml(usage.discriminator.propertyName) + '</span>'
-            : "";
-          var contextChips = (context.chips || []).map(function (chip) {
-            return '<span class="chip">' + escapeHtml(chip) + '</span>';
-          }).join("");
+          var chips = [chip(usage.branchCount + ' branches', 'success')];
+
+          (context.chips || []).forEach(function (item) {
+            chips.push(chip(item, 'neutral'));
+          });
+
+          if (usage.discriminator && usage.discriminator.propertyName) {
+            chips.push(chip('discriminator: ' + usage.discriminator.propertyName, 'accent'));
+          }
 
           return ''
-            + '<button class="usage-item' + active + '" data-pointer="' + escapeHtml(usage.pointer) + '">'
-            + '  <div class="usage-context">' + escapeHtml(context.primaryLabel || usage.path) + '</div>'
-            +      (context.secondaryLabel ? '<div class="usage-subtle">' + escapeHtml(context.secondaryLabel) + '</div>' : '')
-            + '  <div class="usage-path">' + escapeHtml(usage.path) + '</div>'
-            + '  <div class="usage-meta">'
-            + '    <span class="chip success">' + usage.branchCount + ' branches</span>'
-            +       contextChips
-            +       discriminator
-            + '  </div>'
+            + '<button class="w-full rounded-xl border px-3 py-3 text-left transition ' + (active ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50') + '" data-pointer="' + escapeHtml(usage.pointer) + '">'
+            + '  <div class="text-sm font-semibold leading-5 text-slate-900">' + escapeHtml(context.primaryLabel || usage.path) + '</div>'
+            +      (context.secondaryLabel ? '<div class="usage-context mt-1 text-xs text-slate-500">' + escapeHtml(context.secondaryLabel) + '</div>' : '')
+            + '  <div class="mt-2 break-words font-mono text-[11px] leading-4 text-slate-500">' + escapeHtml(usage.path) + '</div>'
+            + '  <div class="mt-2 flex flex-wrap gap-1.5">' + chips.join('') + '</div>'
             + '</button>';
-        }).join("");
+        }).join('');
       }
 
       function renderPathEntry(pathEntry, mode) {
         var badges = [];
         if (pathEntry.required) {
-          badges.push('<span class="badge accent">Required</span>');
+          badges.push(chip('Required', 'accent'));
         } else if (pathEntry.required === false) {
-          badges.push('<span class="badge">Optional</span>');
+          badges.push(chip('Optional', 'neutral'));
         }
         if (pathEntry.peers && pathEntry.peers.length) {
-          badges.push('<span class="badge success">Shared with ' + escapeHtml(pathEntry.peers.join(', ')) + '</span>');
+          badges.push(chip('Shared with ' + pathEntry.peers.join(', '), 'success'));
         }
         if (pathEntry.missingIn && pathEntry.missingIn.length) {
-          badges.push('<span class="badge danger">Missing in ' + escapeHtml(pathEntry.missingIn.join(', ')) + '</span>');
+          badges.push(chip('Missing in ' + pathEntry.missingIn.join(', '), 'danger'));
         }
 
+        var isSelected = state.selectedPath === pathEntry.path;
+
         return ''
-          + '<div class="path-row">'
-          + '  <div class="path-name">' + escapeHtml(pathEntry.path) + '</div>'
-          + '  <div class="chip-row">' + badges.join('') + '</div>'
-          + '  <div class="path-meta">' + escapeHtml(summaryText(pathEntry.summary)) + '</div>'
-          + '  <details class="raw">'
-          + '    <summary>' + escapeHtml(mode === 'shared' ? 'Shared path schema' : 'Path schema') + '</summary>'
-          + '    <pre>' + formatJson(pathEntry.schema || { summary: pathEntry.summary }) + '</pre>'
+          + '<div class="rounded-lg border px-3 py-2 ' + (isSelected ? 'border-indigo-500 bg-indigo-50/60 shadow-sm' : 'border-slate-200 bg-slate-50') + '">'
+          + '  <div class="font-mono text-[12px] font-semibold leading-5 text-slate-800">' + linkButton(pathEntry.path, 'data-path="' + escapeHtml(pathEntry.path) + '"', 'w-full') + '</div>'
+          + '  <div class="mt-1.5 flex flex-wrap gap-1.5">' + badges.join('') + '</div>'
+          + '  <div class="mt-1.5 text-[12px] leading-5 text-slate-500">' + escapeHtml(summaryText(pathEntry.summary)) + '</div>'
+          + '  <details class="mt-2 border-t border-slate-200 pt-2">'
+          + '    <summary class="cursor-pointer text-[12px] font-medium text-slate-500">' + escapeHtml(mode === 'shared' ? 'Shared path schema' : 'Path schema') + '</summary>'
+          + '    <pre class="mt-2 overflow-auto rounded-lg bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">' + formatJson(pathEntry.schema || { summary: pathEntry.summary }) + '</pre>'
           + '  </details>'
           + '</div>';
       }
 
       function renderPathList(entries, mode, emptyText) {
         if (!entries.length) {
-          return '<div class="empty">' + escapeHtml(emptyText) + '</div>';
+          return '<div class="empty-inline rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-5 text-center text-sm text-slate-500">' + escapeHtml(emptyText) + '</div>';
         }
 
-        return '<div class="path-list">' + entries.map(function (entry) {
+        return '<div class="grid gap-2">' + entries.map(function (entry) {
           return renderPathEntry(entry, mode);
         }).join('') + '</div>';
       }
@@ -1409,109 +987,194 @@ function generateOneOfExplorerHtml(model) {
         });
       }
 
+      function renderBranchBucket(title, entries, emptyText) {
+        if (!entries.length) {
+          return '<div class="empty-inline rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-500"><strong>' + escapeHtml(title) + ':</strong> ' + escapeHtml(emptyText) + '</div>';
+        }
+
+        return ''
+          + '<div class="rounded-xl border border-slate-200 bg-slate-50">'
+          + '  <div class="px-3 py-3 text-sm font-semibold text-slate-900">' + escapeHtml(title) + '</div>'
+          + '  <div class="grid gap-3 px-3 pb-3">' + renderPathList(entries, 'branch', emptyText) + '</div>'
+          + '</div>';
+      }
+
       function renderBranchSpecificSections(branchViews) {
         return branchViews.map(function (branchView) {
+          var onlyHere = getDisplayedEntries(branchView.onlyHere);
+          var uniqueSchema = getDisplayedEntries(branchView.uniqueSchema);
+          var sharedWithSubset = getDisplayedEntries(branchView.sharedWithSubset);
+
           return ''
-            + '<div class="section">'
-            + '  <div class="section-header">'
-            + '    <div class="section-title">' + escapeHtml(branchView.label) + '</div>'
-            + '    <div class="stats"><span class="chip danger">' + branchView.totalPathCount + ' paths</span></div>'
+            + '<div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">'
+            + '  <div class="mb-3 flex flex-wrap items-center justify-between gap-2">'
+            + '    <div class="text-base font-semibold text-slate-900">' + escapeHtml(branchView.label) + '</div>'
+            + '    <div class="flex flex-wrap gap-1.5">' + chip(branchView.totalPathCount + ' paths', 'danger') + '</div>'
             + '  </div>'
-            + '  <div class="section-note">Flattened branch-specific paths using dot notation and [] for arrays.</div>'
-            + '  <div class="field-card">'
-            + '    <summary>'
-            + '      <div>'
-            + '        <div class="field-name">Only in ' + escapeHtml(branchView.label) + '</div>'
-            + '      </div>'
-            + '    </summary>'
-            + '    <div class="field-card-body">'
-            +        renderPathList(getDisplayedEntries(branchView.onlyHere), 'branch', 'No paths exist only in this branch.')
-            + '    </div>'
-            + '  </div>'
-            + '  <div class="field-card">'
-            + '    <summary>'
-            + '      <div>'
-            + '        <div class="field-name">Different schema only in ' + escapeHtml(branchView.label) + '</div>'
-            + '      </div>'
-            + '    </summary>'
-            + '    <div class="field-card-body">'
-            +        renderPathList(getDisplayedEntries(branchView.uniqueSchema), 'branch', 'No uniquely-shaped paths in this branch.')
-            + '    </div>'
-            + '  </div>'
-            + '  <div class="field-card">'
-            + '    <summary>'
-            + '      <div>'
-            + '        <div class="field-name">Shared with subset</div>'
-            + '      </div>'
-            + '    </summary>'
-            + '    <div class="field-card-body">'
-            +        renderPathList(getDisplayedEntries(branchView.sharedWithSubset), 'branch', 'No subset-shared paths for this branch.')
-            + '    </div>'
-            + '  </div>'
+            + '  <div class="mb-3 text-sm leading-5 text-slate-500">Flattened branch-specific paths using dot notation and [] for arrays.</div>'
+            +      renderBranchBucket('Only in ' + branchView.label, onlyHere, 'No paths exist only in this branch.')
+            +      renderBranchBucket('Different schema only in ' + branchView.label, uniqueSchema, 'No uniquely-shaped paths in this branch.')
+            +      renderBranchBucket('Shared with subset', sharedWithSubset, 'No subset-shared paths for this branch.')
             + '</div>';
         }).join('');
       }
 
+      function findPathImplementations(selectedUsage, path) {
+        var implementations = [];
+
+        selectedUsage.branches.forEach(function (branch) {
+          var branchView = selectedUsage.fieldComparison.branchViews.find(function (view) {
+            return view.label === branch.label;
+          });
+          var bucketEntries = [];
+
+          if (branchView) {
+            bucketEntries = bucketEntries
+              .concat(branchView.onlyHere || [])
+              .concat(branchView.uniqueSchema || [])
+              .concat(branchView.sharedWithSubset || []);
+          }
+
+          var sharedEntry = (selectedUsage.fieldComparison.sharedPaths || []).find(function (entry) {
+            return entry.path === path;
+          });
+          var branchEntry = bucketEntries.find(function (entry) {
+            return entry.path === path;
+          });
+          var implementation = branchEntry || sharedEntry || null;
+
+          implementations.push({
+            label: branch.label,
+            ref: branch.ref,
+            summary: implementation ? implementation.summary : null,
+            schema: implementation ? implementation.schema : null,
+            present: Boolean(implementation),
+            required: implementation ? implementation.required : false,
+          });
+        });
+
+        return implementations;
+      }
+
+      function getSelectedPath(selectedUsage) {
+        if (!selectedUsage || !state.selectedPath) {
+          return null;
+        }
+
+        var allEntries = (selectedUsage.fieldComparison.sharedPaths || []).slice();
+        (selectedUsage.fieldComparison.branchViews || []).forEach(function (branchView) {
+          allEntries = allEntries
+            .concat(branchView.onlyHere || [])
+            .concat(branchView.uniqueSchema || [])
+            .concat(branchView.sharedWithSubset || []);
+        });
+
+        return allEntries.find(function (entry) {
+          return entry.path === state.selectedPath;
+        }) || null;
+      }
+
+      function renderSelectedPath(selectedUsage) {
+        var selectedPathEntry = getSelectedPath(selectedUsage);
+        if (!selectedUsage || !selectedPathEntry) {
+          return '';
+        }
+
+        var implementations = findPathImplementations(selectedUsage, selectedPathEntry.path);
+
+        return ''
+          + '<div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">'
+          + '  <div class="mb-3 flex flex-wrap items-center justify-between gap-2">'
+          + '    <div class="text-base font-semibold text-slate-900">Path comparison: ' + escapeHtml(selectedPathEntry.path) + '</div>'
+          + '  </div>'
+          + '  <div class="mb-3 text-sm leading-5 text-slate-500">Compare this path side by side across the oneOf branches.</div>'
+          + '  <div class="grid gap-3 overflow-x-auto" style="grid-template-columns: repeat(' + implementations.length + ', minmax(240px, 1fr));">'
+          +      implementations.map(function (implementation) {
+                   var schemaButton = implementation.ref
+                     ? linkButton(implementation.label, 'data-branch-link="' + escapeHtml(implementation.label) + '"')
+                     : escapeHtml(implementation.label);
+                   return ''
+                     + '<div class="rounded-xl border border-slate-200 bg-slate-50 p-3">'
+                     + '  <div class="text-sm font-semibold text-slate-900">' + schemaButton + '</div>'
+                     + '  <div class="mt-2 flex flex-wrap gap-1.5">'
+                     +      (implementation.present ? chip(summaryText(implementation.summary), 'success') : chip('Missing', 'danger'))
+                     +      (implementation.required ? chip('Required', 'accent') : '')
+                     + '  </div>'
+                     +  (implementation.ref ? '<div class="mt-2 text-[12px] leading-5 text-slate-500">Schema: ' + linkButton(implementation.ref, 'data-branch-link="' + escapeHtml(implementation.label) + '"') + '</div>' : '')
+                     + '  <details class="mt-2 border-t border-slate-200 pt-2" open>'
+                     + '    <summary class="cursor-pointer text-[12px] font-medium text-slate-500">Path schema</summary>'
+                     + '    <pre class="mt-2 overflow-auto rounded-lg bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">' + formatJson(implementation.schema || { missing: true }) + '</pre>'
+                     + '  </details>'
+                     + '</div>';
+                 }).join('')
+          + '  </div>'
+          + '</div>';
+      }
+
       function renderBranches(selectedUsage, compactMode) {
         var branchCards = selectedUsage.branches.map(function (branch) {
+          var isSelectedBranch = state.selectedBranchLabel === branch.label;
+          var title = branch.ref ? linkButton(branch.label, 'data-branch-link="' + escapeHtml(branch.label) + '"') : escapeHtml(branch.label);
+
           return ''
-            + '<div class="branch-card">'
-            + '  <div class="field-name">' + escapeHtml(branch.label) + '</div>'
-            + '  <div class="chip-row">'
-            + '    <span class="badge accent">' + escapeHtml(summaryText(branch.summary)) + '</span>'
-            +      (branch.ref ? '<span class="badge">' + escapeHtml(branch.ref) + '</span>' : '')
-            +      (branch.isObjectLike ? '<span class="badge success">' + branch.propertyCount + ' properties</span>' : '<span class="badge danger">raw schema summary</span>')
+            + '<div class="rounded-xl border p-3 ' + (isSelectedBranch ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-slate-200 bg-slate-50') + '">'
+            + '  <div class="text-sm font-semibold text-slate-900">' + title + '</div>'
+            + '  <div class="mt-2 flex flex-wrap gap-1.5">'
+            + '    ' + chip(summaryText(branch.summary), 'accent')
+            +      (branch.ref ? '<span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">' + linkButton(branch.ref, 'data-branch-link="' + escapeHtml(branch.label) + '"') + '</span>' : '')
+            +      (branch.isObjectLike ? chip(branch.propertyCount + ' properties', 'success') : chip('raw schema summary', 'danger'))
             + '  </div>'
-            + '  <details class="raw"' + (compactMode ? '' : ' open') + '>'
-            + '    <summary>Resolved schema</summary>'
-            + '    <pre>' + formatJson(branch.displaySchema) + '</pre>'
+            + '  <details class="mt-2 border-t border-slate-200 pt-2"' + (compactMode ? '' : ' open') + '>'
+            + '    <summary class="cursor-pointer text-[12px] font-medium text-slate-500">Resolved schema</summary>'
+            + '    <pre class="mt-2 overflow-auto rounded-lg bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">' + formatJson(branch.displaySchema) + '</pre>'
             + '  </details>'
-            + '  <details class="raw">'
-            + '    <summary>Original branch</summary>'
-            + '    <pre>' + formatJson(branch.rawDisplaySchema) + '</pre>'
+            + '  <details class="mt-2 border-t border-slate-200 pt-2">'
+            + '    <summary class="cursor-pointer text-[12px] font-medium text-slate-500">Original branch</summary>'
+            + '    <pre class="mt-2 overflow-auto rounded-lg bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">' + formatJson(branch.rawDisplaySchema) + '</pre>'
             + '  </details>'
             + '</div>';
-        }).join("");
+        }).join('');
 
-        if (state.layout === "accordion") {
+        if (state.layout === 'accordion') {
           return selectedUsage.branches.map(function (branch) {
+            var isSelectedBranch = state.selectedBranchLabel === branch.label;
+            var title = branch.ref ? linkButton(branch.label, 'data-branch-link="' + escapeHtml(branch.label) + '"') : escapeHtml(branch.label);
+
             return ''
-              + '<details class="field-card" open>'
-              + '  <summary>'
-              + '    <div>'
-              + '      <div class="field-name">' + escapeHtml(branch.label) + '</div>'
-              + '      <div class="field-summary">' + escapeHtml(summaryText(branch.summary)) + '</div>'
-              + '    </div>'
+              + '<details class="rounded-xl border border-slate-200 bg-slate-50"' + (isSelectedBranch ? ' open' : '') + '>'
+              + '  <summary class="px-3 py-3">'
+              + '    <div class="text-sm font-semibold text-slate-900">' + title + '</div>'
+              + '    <div class="mt-1 text-[12px] leading-5 text-slate-500">' + escapeHtml(summaryText(branch.summary)) + '</div>'
               + '  </summary>'
-              + '  <div class="field-card-body">'
-              + '    <div class="branch-card">'
-              + '      <div class="chip-row">'
-              +          (branch.ref ? '<span class="badge">' + escapeHtml(branch.ref) + '</span>' : '')
-              +          (branch.isObjectLike ? '<span class="badge success">' + branch.propertyCount + ' properties</span>' : '<span class="badge danger">raw schema summary</span>')
+              + '  <div class="grid gap-3 px-3 pb-3">'
+              + '    <div class="rounded-lg border border-slate-200 bg-white p-3">'
+              + '      <div class="flex flex-wrap gap-1.5">'
+              +          (branch.ref ? '<span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">' + linkButton(branch.ref, 'data-branch-link="' + escapeHtml(branch.label) + '"') + '</span>' : '')
+              +          (branch.isObjectLike ? chip(branch.propertyCount + ' properties', 'success') : chip('raw schema summary', 'danger'))
               + '      </div>'
-              + '      <details class="raw"' + (compactMode ? '' : ' open') + '>'
-              + '        <summary>Resolved schema</summary>'
-              + '        <pre>' + formatJson(branch.displaySchema) + '</pre>'
+              + '      <details class="mt-2 border-t border-slate-200 pt-2"' + (compactMode ? '' : ' open') + '>'
+              + '        <summary class="cursor-pointer text-[12px] font-medium text-slate-500">Resolved schema</summary>'
+              + '        <pre class="mt-2 overflow-auto rounded-lg bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">' + formatJson(branch.displaySchema) + '</pre>'
               + '      </details>'
-              + '      <details class="raw">'
-              + '        <summary>Original branch</summary>'
-              + '        <pre>' + formatJson(branch.rawDisplaySchema) + '</pre>'
+              + '      <details class="mt-2 border-t border-slate-200 pt-2">'
+              + '        <summary class="cursor-pointer text-[12px] font-medium text-slate-500">Original branch</summary>'
+              + '        <pre class="mt-2 overflow-auto rounded-lg bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">' + formatJson(branch.rawDisplaySchema) + '</pre>'
               + '      </details>'
               + '    </div>'
               + '  </div>'
               + '</details>';
-          }).join("");
+          }).join('');
         }
 
-        return '<div class="branch-grid side-by-side" style="--branch-count: ' + selectedUsage.branches.length + ';">' + branchCards + '</div>';
+        return '<div class="grid gap-3 overflow-x-auto" style="grid-template-columns: repeat(' + selectedUsage.branches.length + ', minmax(240px, 1fr));">' + branchCards + '</div>';
       }
 
       function renderDetail(selectedUsage) {
         if (!selectedUsage) {
           return ''
-            + '<div class="detail">'
-            + '  <div class="detail-header"><h2>No oneOf usage found</h2></div>'
-            + '  <div class="detail-body"><div class="section"><div class="empty">This specification does not contain any oneOf nodes.</div></div></div>'
+            + '<div class="min-w-0 rounded-2xl border border-slate-200 bg-white shadow-sm">'
+            + '  <div class="border-b border-slate-200 px-4 py-4"><h2 class="text-lg font-semibold text-slate-900">No oneOf usage found</h2></div>'
+            + '  <div class="grid gap-3 p-4"><div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">This specification does not contain any oneOf nodes.</div></div>'
             + '</div>';
         }
 
@@ -1522,62 +1185,54 @@ function generateOneOfExplorerHtml(model) {
               + selectedUsage.fieldComparison.scope.skippedBranchLabels.length + ' branch' + (selectedUsage.fieldComparison.scope.skippedBranchLabels.length === 1 ? ' is' : 'es are') + ' shown as raw schema summaries.'
           : 'Flattened path comparison covers every branch in this oneOf.';
 
-        var discriminator = selectedUsage.discriminator && selectedUsage.discriminator.propertyName
-          ? '<span class="chip accent">discriminator: ' + escapeHtml(selectedUsage.discriminator.propertyName) + '</span>'
-          : '';
+        var chips = [chip(selectedUsage.branchCount + ' branches', 'success')];
+        if (compactMode) chips.push(chip('compact mode', 'neutral'));
+        (context.chips || []).forEach(function (item) { chips.push(chip(item, 'neutral')); });
+        if (selectedUsage.discriminator && selectedUsage.discriminator.propertyName) {
+          chips.push(chip('discriminator: ' + selectedUsage.discriminator.propertyName, 'accent'));
+        }
 
         return ''
-          + '<div class="detail">'
-          + '  <div class="detail-header">'
-          + '    <div class="eyebrow">oneOf usage</div>'
-          + '    <h1>' + escapeHtml(context.primaryLabel || selectedUsage.path) + '</h1>'
-          +      (context.secondaryLabel ? '<div class="subtle">' + escapeHtml(context.secondaryLabel) + '</div>' : '')
-          + '    <div class="subtle">Inspect shared fields, branch-specific fields, and the raw schemas behind this oneOf.</div>'
-          + '    <div class="stats">'
-          + '      <span class="chip success">' + selectedUsage.branchCount + ' branches</span>'
-          +      (compactMode ? '<span class="chip">compact mode</span>' : '')
-          +      (context.chips || []).map(function (chip) { return '<span class="chip">' + escapeHtml(chip) + '</span>'; }).join('')
-          +        discriminator
-          + '      <button class="copy-button" data-copy-pointer="' + escapeHtml(selectedUsage.pointer) + '">Copy pointer</button>'
-          + '    </div>'
-          + '    <div class="pointer">' + escapeHtml(selectedUsage.pointer) + '</div>'
+          + '<div class="min-w-0 rounded-2xl border border-slate-200 bg-white shadow-sm">'
+          + '  <div class="sticky top-3 z-10 border-b border-slate-200 bg-white/95 px-4 py-4 backdrop-blur">'
+          + '    <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">oneOf usage</div>'
+          + '    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-slate-900">' + escapeHtml(context.primaryLabel || selectedUsage.path) + '</h1>'
+          +      (context.secondaryLabel ? '<div class="mt-1 text-sm text-slate-500">' + escapeHtml(context.secondaryLabel) + '</div>' : '')
+          + '    <div class="mt-2 text-sm leading-5 text-slate-500">Inspect shared fields, branch-specific fields, and the raw schemas behind this oneOf.</div>'
+          + '    <div class="mt-3 flex flex-wrap gap-1.5">' + chips.join('') + outlineButton('Copy pointer', false, 'data-copy-pointer="' + escapeHtml(selectedUsage.pointer) + '"') + '</div>'
+          + '    <div class="mt-2 break-all font-mono text-[11px] leading-5 text-slate-500">' + escapeHtml(selectedUsage.pointer) + '</div>'
           + '  </div>'
-          + '  <div class="detail-body' + (compactMode ? ' compact-mode' : '') + '">'
-          + '    <div class="section">'
-          + '      <div class="section-header">'
-          + '        <div class="section-title">Comparison scope</div>'
-          + '      </div>'
-          + '      <p class="section-note">' + escapeHtml(comparisonTitle) + '</p>'
-          + '      <div class="chip-row">'
-          + '        <span class="chip success">' + selectedUsage.fieldComparison.sharedPaths.length + ' shared paths</span>'
-          + '        <span class="chip danger">' + selectedUsage.fieldComparison.nonSharedPathCount + ' branch-specific paths</span>'
-          + '        <span class="chip">' + (state.uniqueVariantsOnly ? 'unique variants only' : 'all branches') + '</span>'
+          + '  <div class="grid gap-3 p-4">'
+          + '    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">'
+          + '      <div class="text-base font-semibold text-slate-900">Comparison scope</div>'
+          + '      <p class="mt-2 text-sm leading-5 text-slate-500">' + escapeHtml(comparisonTitle) + '</p>'
+          + '      <div class="mt-3 flex flex-wrap gap-1.5">'
+          + '        ' + chip(selectedUsage.fieldComparison.sharedPaths.length + ' shared paths', 'success')
+          + '        ' + chip(selectedUsage.fieldComparison.nonSharedPathCount + ' branch-specific paths', 'danger')
+          + '        ' + chip(state.uniqueVariantsOnly ? 'unique variants only' : 'all branches', 'neutral')
           + '      </div>'
           + '    </div>'
-          + '    <div class="section">'
-          + '      <div class="section-header">'
-          + '        <div class="section-title">Shared across all branches</div>'
-          + '      </div>'
+          + '    <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">'
+          + '      <div class="mb-3 text-base font-semibold text-slate-900">Shared across all branches</div>'
           +        renderPathList(selectedUsage.fieldComparison.sharedPaths, 'shared', 'No shared flattened paths across every branch.')
           + '    </div>'
           +      renderBranchSpecificSections(selectedUsage.fieldComparison.branchViews)
-          + '    <div class="section">'
-          + '      <div class="section-header">'
-          + '        <div class="section-title">Branches</div>'
-          + '        <div class="toolbar">'
-          + '          <button data-layout="side-by-side" class="' + (state.layout === 'side-by-side' ? 'active' : '') + '">Side by side</button>'
-          + '          <button data-layout="accordion" class="' + (state.layout === 'accordion' ? 'active' : '') + '">Accordion</button>'
-          + '          <button data-compact="toggle" class="' + (compactMode ? 'active' : '') + '">Compact</button>'
-          + '          <button data-variants="toggle" class="' + (state.uniqueVariantsOnly ? 'active' : '') + '">Show only unique variants</button>'
+          +      renderSelectedPath(selectedUsage)
+          + '    <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">'
+          + '      <div class="mb-3 flex flex-wrap items-center justify-between gap-2">'
+          + '        <div class="text-base font-semibold text-slate-900">Branches</div>'
+          + '        <div class="flex flex-wrap gap-2">'
+          +           outlineButton('Side by side', state.layout === 'side-by-side', 'data-layout="side-by-side"')
+          +           outlineButton('Accordion', state.layout === 'accordion', 'data-layout="accordion"')
+          +           outlineButton('Compact', compactMode, 'data-compact="toggle"')
+          +           outlineButton('Show only unique variants', state.uniqueVariantsOnly, 'data-variants="toggle"')
           + '        </div>'
           + '      </div>'
           +        renderBranches(selectedUsage, compactMode)
           + '    </div>'
-          + '    <div class="section">'
-          + '      <div class="section-header">'
-          + '        <div class="section-title">Raw oneOf definition</div>'
-          + '      </div>'
-          + '      <pre>' + formatJson(selectedUsage.rawOneOf) + '</pre>'
+          + '    <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">'
+          + '      <div class="mb-3 text-base font-semibold text-slate-900">Raw oneOf definition</div>'
+          + '      <pre class="overflow-auto rounded-lg bg-slate-950 p-3 text-[11px] leading-5 text-slate-100">' + formatJson(selectedUsage.rawOneOf) + '</pre>'
           + '    </div>'
           + '  </div>'
           + '</div>';
@@ -1593,15 +1248,15 @@ function generateOneOfExplorerHtml(model) {
         }
 
         app.innerHTML = ''
-          + '<div class="shell">'
-          + '  <aside class="sidebar">'
-          + '    <div class="sidebar-header">'
-          + '      <div class="eyebrow">OpenAPI explorer</div>'
-          + '      <h2>' + escapeHtml(data.specTitle) + '</h2>'
-          + '      <div class="subtle">Detected ' + data.totalOneOfCount + ' oneOf usage' + (data.totalOneOfCount === 1 ? '' : 's') + ' across the specification.</div>'
-          + '      <input class="search" type="search" placeholder="Search oneOf usage" value="' + escapeHtml(state.query) + '" data-search-input="true" />'
+          + '<div class="grid min-h-screen gap-3 p-3 lg:grid-cols-[320px_minmax(0,1fr)]">'
+          + '  <aside class="top-3 flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:sticky lg:h-[calc(100vh-1.5rem)]">'
+          + '    <div class="border-b border-slate-200 px-4 py-4">'
+          + '      <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">OpenAPI explorer</div>'
+          + '      <h2 class="mt-2 text-xl font-semibold tracking-tight text-slate-900">' + escapeHtml(data.specTitle) + '</h2>'
+          + '      <div class="mt-1 text-sm leading-5 text-slate-500">Detected ' + data.totalOneOfCount + ' oneOf usage' + (data.totalOneOfCount === 1 ? '' : 's') + ' across the specification.</div>'
+          + '      <input class="mt-3 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-none" type="search" placeholder="Search oneOf usage" value="' + escapeHtml(state.query) + '" data-search-input="true" />'
           + '    </div>'
-          + '    <div class="usage-list">' + renderUsageList(filteredUsages, selectedUsage) + '</div>'
+          + '    <div class="grid gap-2 overflow-auto p-3">' + renderUsageList(filteredUsages, selectedUsage) + '</div>'
           + '  </aside>'
           +      renderDetail(selectedUsage)
           + '</div>';
@@ -1635,6 +1290,23 @@ function generateOneOfExplorerHtml(model) {
         var variantsButton = event.target.closest('[data-variants]');
         if (variantsButton) {
           state.uniqueVariantsOnly = !state.uniqueVariantsOnly;
+          writeHashState();
+          render();
+          return;
+        }
+
+        var pathButton = event.target.closest('[data-path]');
+        if (pathButton) {
+          state.selectedPath = pathButton.getAttribute('data-path');
+          writeHashState();
+          render();
+          return;
+        }
+
+        var branchLink = event.target.closest('[data-branch-link]');
+        if (branchLink) {
+          state.selectedBranchLabel = branchLink.getAttribute('data-branch-link');
+          state.layout = 'accordion';
           writeHashState();
           render();
           return;
