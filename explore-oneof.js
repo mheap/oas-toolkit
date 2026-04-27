@@ -157,6 +157,7 @@ function compareObjectBranches(branches) {
     const schemaFingerprints = presentSchemas.map((entry) => JSON.stringify(entry.schema));
     const schemaMatchesWherePresent = schemaFingerprints.length <= 1
       || schemaFingerprints.every((fingerprint) => fingerprint === schemaFingerprints[0]);
+    const schemaVariants = buildSchemaVariants(presentSchemas);
     const presentIn = presentSchemas.map((entry) => entry.label);
     const missingIn = branchSchemas.filter((entry) => !entry.present).map((entry) => entry.label);
     const requiredIn = branchSchemas.filter((entry) => entry.required).map((entry) => entry.label);
@@ -167,6 +168,8 @@ function compareObjectBranches(branches) {
       name: fieldName,
       summary: presentSchemas[0] ? presentSchemas[0].schemaSummary : null,
       schemaMatchesWherePresent,
+      schemaVariantCount: schemaVariants.length,
+      schemaVariants,
       presentIn,
       missingIn,
       requiredIn,
@@ -199,6 +202,50 @@ function compareObjectBranches(branches) {
     commonFields,
     differingFields,
   };
+}
+
+function buildSchemaVariants(presentSchemas) {
+  const variants = new Map();
+
+  for (const entry of presentSchemas) {
+    const fingerprint = JSON.stringify(entry.schema);
+    if (!variants.has(fingerprint)) {
+      variants.set(fingerprint, {
+        fingerprint,
+        summary: entry.schemaSummary,
+        schema: entry.schema,
+        members: [],
+        requiredIn: [],
+        optionalIn: [],
+      });
+    }
+
+    const variant = variants.get(fingerprint);
+    variant.members.push(entry.label);
+    if (entry.required) {
+      variant.requiredIn.push(entry.label);
+    } else {
+      variant.optionalIn.push(entry.label);
+    }
+  }
+
+  return Array.from(variants.values())
+    .map((variant) => ({
+      fingerprint: variant.fingerprint,
+      summary: variant.summary,
+      schema: variant.schema,
+      members: variant.members,
+      memberCount: variant.members.length,
+      requiredIn: variant.requiredIn,
+      optionalIn: variant.optionalIn,
+    }))
+    .sort((left, right) => {
+      if (right.memberCount !== left.memberCount) {
+        return right.memberCount - left.memberCount;
+      }
+
+      return left.members.join(", ").localeCompare(right.members.join(", "));
+    });
 }
 
 function summarizeSchema(schema) {
@@ -1032,7 +1079,8 @@ function generateOneOfExplorerHtml(model) {
         query: "",
         selectedPointer: null,
         layout: "side-by-side",
-        compact: null
+        compact: null,
+        uniqueVariantsOnly: false
       };
 
       function escapeHtml(value) {
@@ -1109,10 +1157,12 @@ function generateOneOfExplorerHtml(model) {
         var pointer = params.get("pointer");
         var layout = params.get("layout");
         var compact = params.get("compact");
+        var variants = params.get("variants");
         if (pointer) state.selectedPointer = pointer;
         if (layout === "accordion" || layout === "side-by-side") state.layout = layout;
         if (compact === "1") state.compact = true;
         if (compact === "0") state.compact = false;
+        state.uniqueVariantsOnly = variants === "unique";
       }
 
       function writeHashState() {
@@ -1120,6 +1170,7 @@ function generateOneOfExplorerHtml(model) {
         if (state.selectedPointer) params.set("pointer", state.selectedPointer);
         if (state.layout) params.set("layout", state.layout);
         if (state.compact !== null) params.set("compact", state.compact ? "1" : "0");
+        if (state.uniqueVariantsOnly) params.set("variants", "unique");
         var nextHash = params.toString();
         if (window.location.hash.slice(1) !== nextHash) {
           window.location.hash = nextHash;
@@ -1229,6 +1280,57 @@ function generateOneOfExplorerHtml(model) {
           + '</div>';
       }
 
+      function renderVariantSummary(variant) {
+        var title = variant.memberCount === 1
+          ? 'Unique to ' + variant.members[0]
+          : 'Shared by ' + variant.memberCount + ' branches: ' + variant.members.join(', ');
+        var requiredBadge = variant.requiredIn.length === variant.memberCount
+          ? '<span class="badge accent">Required in all</span>'
+          : variant.requiredIn.length
+            ? '<span class="badge">Required in ' + variant.requiredIn.join(', ') + '</span>'
+            : '<span class="badge">Optional in all</span>';
+
+        return ''
+          + '<div class="variant-card">'
+          + '  <div class="variant-title">' + escapeHtml(title) + '</div>'
+          + '  <div class="chip-row">'
+          + '    <span class="badge success">' + escapeHtml(summaryText(variant.summary)) + '</span>'
+          +      requiredBadge
+          + '  </div>'
+          + '  <div class="variant-subtle">Members: ' + escapeHtml(variant.members.join(', ')) + '</div>'
+          + '  <details class="raw">'
+          + '    <summary>Shared schema</summary>'
+          + '    <pre>' + formatJson(variant.schema) + '</pre>'
+          + '  </details>'
+          + '</div>';
+      }
+
+      function getDisplayedBranchSchemas(field) {
+        if (!state.uniqueVariantsOnly) {
+          return field.branchSchemas;
+        }
+
+        var included = [];
+        var seen = new Set();
+
+        field.branchSchemas.forEach(function (entry) {
+          if (!entry.present) {
+            included.push(entry);
+            return;
+          }
+
+          var variantKey = JSON.stringify(entry.schema);
+          if (seen.has(variantKey)) {
+            return;
+          }
+
+          seen.add(variantKey);
+          included.push(entry);
+        });
+
+        return included;
+      }
+
       function renderNestedComparison(nestedComparison, depth) {
         if (!nestedComparison) {
           return "";
@@ -1247,6 +1349,10 @@ function generateOneOfExplorerHtml(model) {
         }
 
         return fields.map(function (field) {
+          var displayedBranchSchemas = getDisplayedBranchSchemas(field);
+          var variantSummary = field.schemaVariantCount > 1
+            ? field.schemaVariantCount + ' schema variants across ' + field.presentIn.length + ' branches'
+            : '';
           var reasonChips = field.differenceReasons.map(function (reason) {
             var label = reason === "schema" ? "schema mismatch" : "missing in branches";
             return '<span class="chip danger">' + escapeHtml(label) + '</span>';
@@ -1258,12 +1364,16 @@ function generateOneOfExplorerHtml(model) {
             + '    <div>'
             + '      <div class="field-name">' + escapeHtml(field.name) + '</div>'
             + '      <div class="field-summary">' + escapeHtml(summaryText(field.summary)) + '</div>'
+            +        (variantSummary ? '<div class="variant-subtle">' + escapeHtml(variantSummary) + '</div>' : '')
             + '    </div>'
             + '    <div class="chip-row">' + reasonChips + '</div>'
             + '  </summary>'
             + '  <div class="field-card-body">'
+            +      (field.schemaVariants && field.schemaVariants.length
+                    ? '<div class="variant-list">' + field.schemaVariants.map(renderVariantSummary).join("") + '</div>'
+                    : '')
             + '    <div class="branch-grid side-by-side" style="--branch-count: ' + branchLabels.length + ';">'
-            +        field.branchSchemas.map(renderBranchCell).join("")
+            +        displayedBranchSchemas.map(renderBranchCell).join("")
             + '    </div>'
             +      renderNestedComparison(field.nestedComparison, depth)
             + '  </div>'
@@ -1395,6 +1505,7 @@ function generateOneOfExplorerHtml(model) {
           + '      <div class="chip-row">'
           + '        <span class="chip success">' + selectedUsage.fieldComparison.commonFields.length + ' common fields</span>'
           + '        <span class="chip danger">' + selectedUsage.fieldComparison.differingFields.length + ' different fields</span>'
+          + '        <span class="chip">' + (state.uniqueVariantsOnly ? 'unique variants only' : 'all branches') + '</span>'
           + '      </div>'
           + '    </div>'
           +      renderComparisonSections(selectedUsage.fieldComparison, 0, compactMode)
@@ -1405,6 +1516,7 @@ function generateOneOfExplorerHtml(model) {
           + '          <button data-layout="side-by-side" class="' + (state.layout === 'side-by-side' ? 'active' : '') + '">Side by side</button>'
           + '          <button data-layout="accordion" class="' + (state.layout === 'accordion' ? 'active' : '') + '">Accordion</button>'
           + '          <button data-compact="toggle" class="' + (compactMode ? 'active' : '') + '">Compact</button>'
+          + '          <button data-variants="toggle" class="' + (state.uniqueVariantsOnly ? 'active' : '') + '">Show only unique variants</button>'
           + '        </div>'
           + '      </div>'
           +        renderBranches(selectedUsage, compactMode)
@@ -1463,6 +1575,14 @@ function generateOneOfExplorerHtml(model) {
         var compactButton = event.target.closest('[data-compact]');
         if (compactButton) {
           state.compact = !isCompactMode(getSelectedUsage(getFilteredUsages()));
+          writeHashState();
+          render();
+          return;
+        }
+
+        var variantsButton = event.target.closest('[data-variants]');
+        if (variantsButton) {
+          state.uniqueVariantsOnly = !state.uniqueVariantsOnly;
           writeHashState();
           render();
           return;

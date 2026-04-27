@@ -94,10 +94,87 @@ describe("explore-oneof", () => {
     }, {});
 
     expect(differingFields.kind.schemaMatchesWherePresent).toBe(false);
+    expect(differingFields.kind.schemaVariantCount).toBe(2);
+    expect(differingFields.kind.schemaVariants.map((variant) => variant.members)).toEqual([
+      ["Cat"],
+      ["Dog"],
+    ]);
     expect(differingFields.kind.requiredIn).toEqual(["Cat", "Dog"]);
     expect(differingFields.age.missingIn).toEqual(["Dog"]);
     expect(differingFields.barkVolume.missingIn).toEqual(["Cat"]);
     expect(requestUsage.branches.map((branch) => branch.label)).toEqual(["Cat", "Dog"]);
+  });
+
+  it("groups shared schema variants inside differing fields", async () => {
+    const model = await buildOneOfExplorerModel({
+      openapi: "3.0.0",
+      info: {
+        title: "Providers API",
+      },
+      components: {
+        schemas: {
+          CreateProviderRequest: {
+            oneOf: [
+              { $ref: "#/components/schemas/Anthropic" },
+              { $ref: "#/components/schemas/Azure" },
+              { $ref: "#/components/schemas/Cerebras" },
+            ],
+          },
+          Anthropic: {
+            type: "object",
+            required: ["config"],
+            properties: {
+              config: {
+                type: "object",
+                required: ["auth"],
+                properties: {
+                  auth: { type: "string" },
+                },
+              },
+            },
+          },
+          Azure: {
+            type: "object",
+            required: ["config"],
+            properties: {
+              config: {
+                type: "object",
+                required: ["auth", "instance"],
+                properties: {
+                  auth: { type: "string" },
+                  instance: { type: "string" },
+                },
+              },
+            },
+          },
+          Cerebras: {
+            type: "object",
+            required: ["config"],
+            properties: {
+              config: {
+                type: "object",
+                required: ["auth"],
+                properties: {
+                  auth: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const usage = model.oneOfUsages[0];
+    const configField = usage.fieldComparison.differingFields.find((field) => field.name === "config");
+
+    expect(configField).toBeTruthy();
+    expect(configField.schemaVariantCount).toBe(2);
+    expect(configField.schemaVariants.map((variant) => variant.members)).toEqual([
+      ["Anthropic", "Cerebras"],
+      ["Azure"],
+    ]);
+    expect(configField.schemaVariants[0].requiredIn).toEqual(["Anthropic", "Cerebras"]);
+    expect(configField.schemaVariants[1].requiredIn).toEqual(["Azure"]);
   });
 
   it("uses heuristic branch labels and disambiguates duplicates", async () => {
@@ -161,7 +238,54 @@ describe("explore-oneof", () => {
               skippedBranchLabels: [],
             },
             commonFields: [],
-            differingFields: [],
+            differingFields: [
+              {
+                name: "config",
+                summary: { type: "object", propertyCount: 1 },
+                schemaMatchesWherePresent: false,
+                schemaVariantCount: 2,
+                schemaVariants: [
+                  {
+                    members: ["Cat"],
+                    memberCount: 1,
+                    requiredIn: ["Cat"],
+                    optionalIn: [],
+                    summary: { type: "object", propertyCount: 1 },
+                    schema: { type: "object", properties: { token: { type: "string" } } },
+                  },
+                  {
+                    members: ["Dog"],
+                    memberCount: 1,
+                    requiredIn: ["Dog"],
+                    optionalIn: [],
+                    summary: { type: "object", propertyCount: 2 },
+                    schema: { type: "object", properties: { token: { type: "string" }, instance: { type: "string" } } },
+                  },
+                ],
+                presentIn: ["Cat", "Dog"],
+                missingIn: [],
+                requiredIn: ["Cat", "Dog"],
+                optionalIn: [],
+                differenceReasons: ["schema"],
+                branchSchemas: [
+                  {
+                    label: "Cat",
+                    present: true,
+                    required: true,
+                    schemaSummary: { type: "object", propertyCount: 1 },
+                    schema: { type: "object", properties: { token: { type: "string" } } },
+                  },
+                  {
+                    label: "Dog",
+                    present: true,
+                    required: true,
+                    schemaSummary: { type: "object", propertyCount: 2 },
+                    schema: { type: "object", properties: { token: { type: "string" }, instance: { type: "string" } } },
+                  },
+                ],
+                nestedComparison: null,
+              },
+            ],
           },
           branches: [
             {
@@ -200,5 +324,8 @@ describe("explore-oneof", () => {
     expect(html).toContain("Accordion");
     expect(html).toContain("Compact");
     expect(html).toContain("usage-context");
+    expect(html).toContain("Show only unique variants");
+    expect(html).toContain("Shared by");
+    expect(html).toContain("variants");
   });
 });

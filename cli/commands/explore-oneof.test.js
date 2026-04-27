@@ -13,6 +13,7 @@ describe("explore-oneof command html", () => {
     expect(html).toContain("window.location.hash");
     expect(html).toContain("Search oneOf usage");
     expect(html).toContain("data-compact");
+    expect(html).toContain("data-variants");
     expect(html).toContain("usage-context");
   });
 });
