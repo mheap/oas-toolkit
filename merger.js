@@ -61,41 +61,90 @@ function merge(objects) {
   return combinedSpec;
 }
 
-function ensureNoComponentColissions(objects, options) {
+function normalizeIgnorePrefix(options) {
+  const ignorePrefix = options && options.ignorePrefix;
+  if (!ignorePrefix) {
+    return [];
+  }
+  return typeof ignorePrefix === "string" ? [ignorePrefix] : ignorePrefix;
+}
+
+// Returns components with multiple definitions across documents.
+// Pass the same documents going to the merger. If bundled before merging, pass
+// bundled versions so inlined components are visible. Returns { type, name, entries }.
+// Options: ignorePrefix (skip paths), ignoreIdentical (drop if all defs identical).
+function findComponentCollisions(objects, options) {
   options = options || {};
-  const componentList = {};
-  // Fetch the first two levels of components
-  for (const object of objects) {
-    if (object.components) {
-      for (let type in object.components) {
-        for (const item in object.components[type]) {
-          componentList[`components.${type}.${item}`] =
-            componentList[`components.${type}.${item}`] || [];
-          componentList[`components.${type}.${item}`].push(object.info.title);
+  const prefixes = normalizeIgnorePrefix(options);
+  const ignoreIdentical = Boolean(options.ignoreIdentical);
+
+  const registry = new Map();
+
+  for (const object of objects || []) {
+    if (!object || !object.components || typeof object.components !== "object") {
+      continue;
+    }
+    const title = object.info ? object.info.title : undefined;
+
+    for (const [type, definitions] of Object.entries(object.components)) {
+      if (
+        !definitions ||
+        typeof definitions !== "object" ||
+        Array.isArray(definitions)
+      ) {
+        continue;
+      }
+
+      for (const [originalName, definition] of Object.entries(definitions)) {
+        const key = `components.${type}.${originalName}`;
+        if (prefixes.some((prefix) => key.startsWith(prefix))) {
+          continue;
         }
+
+        if (!registry.has(key)) {
+          registry.set(key, { type, name: originalName, entries: [] });
+        }
+        registry.get(key).entries.push({ title, originalName, definition });
       }
     }
   }
 
-  for (let component in componentList) {
-    if (options.ignorePrefix) {
-      if (typeof options.ignorePrefix == "string") {
-        options.ignorePrefix = [options.ignorePrefix];
-      }
-      for (let prefix of options.ignorePrefix) {
-        if (component.startsWith(prefix)) {
-          delete componentList[component];
-        }
-      }
+  const collisions = [];
+  for (const { type, name, entries } of registry.values()) {
+    if (entries.length < 2) {
+      continue;
     }
 
-    // Check if there are > 2
-    const value = componentList[component];
-    if (value && value.length > 1) {
-      throw new Error(
-        `Duplicate component detected: ${component} (${value.join(", ")})`
-      );
+    // With ignoreIdentical, drop collisions where every spec defines the component
+    // the same way (key order is ignored by isEqual).
+    const [first, ...rest] = entries;
+    if (
+      ignoreIdentical &&
+      rest.every((entry) => isEqual(entry.definition, first.definition))
+    ) {
+      continue;
     }
+    collisions.push({ type, name, entries });
+  }
+
+  return collisions;
+}
+
+function formatComponentCollisions(collisions) {
+  return collisions
+    .map((collision) => {
+      const sources = collision.entries.map((entry) => entry.title);
+      return `Duplicate component detected: components.${collision.type}.${
+        collision.name
+      } (${sources.join(", ")})`;
+    })
+    .join("\n");
+}
+
+function ensureNoComponentColissions(objects, options) {
+  const collisions = findComponentCollisions(objects, options);
+  if (collisions.length > 0) {
+    throw new Error(formatComponentCollisions(collisions));
   }
 }
 
@@ -107,7 +156,10 @@ function ensureNoPathColissions(objects) {
       // Normalise the path
       const normalisedPath = path.replace(/\{\w+\}/g, "{VAR}");
       for (let verb in object.paths[path]) {
-        const k = `${verb.toUpperCase()} ${normalisedPath} @ ${object.servers ? object.servers.map(s => s.url).join(",") : "No Server"}`;
+        // Only qualify the key with servers when they're set, so specs without
+        // servers keep the original `VERB /path` message.
+        const servers = object.servers ? object.servers.map((s) => s.url).join(",") : "";
+        const k = `${verb.toUpperCase()} ${normalisedPath}${servers ? ` @ ${servers}` : ""}`;
         actionList[k] = actionList[k] || [];
         actionList[k].push(object.info.title);
       }
@@ -212,7 +264,8 @@ function ensureNoSecurityColissions(objects) {
   }
 }
 
-function ensureNoComplexObjectCollisions(objects) {
+function ensureNoComplexObjectCollisions(objects, options) {
+  const prefixes = normalizeIgnorePrefix(options);
   const allPaths = {};
   for (let object of objects) {
     traverse(object).forEach(function () {
@@ -220,6 +273,9 @@ function ensureNoComplexObjectCollisions(objects) {
         ["oneOf", "allOf", "anyOf", "$ref", "properties"].includes(this.key)
       ) {
         const k = this.path.slice(0, -1).join(".");
+        if (prefixes.some((prefix) => k.startsWith(prefix))) {
+          return;
+        }
         allPaths[k] = allPaths[k] || [];
         allPaths[k].push({
           key: this.key,
@@ -265,6 +321,8 @@ function ensureNoComplexObjectCollisions(objects) {
 }
 
 module.exports = Object.assign(merge, {
+  findComponentCollisions,
+  formatComponentCollisions,
   ensureNoComponentColissions,
   ensureNoPathColissions,
   ensureNoTagColissions,
