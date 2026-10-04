@@ -16,8 +16,24 @@ yargs(hideBin(process.argv))
     require("./commands/merge")
   )
   .command(
-    "check-conflicts <openapi> <...more.yaml>",
+    "check-conflicts <openapi> <more...>",
     "check for conflicting components, paths, tags, and security schemes",
+    (yargs) => {
+      yargs.option("ignore-prefix", {
+        demandOption: false,
+        type: "array",
+        nargs: 1,
+        describe:
+          "Component path prefix to skip, e.g. components.securitySchemes. Repeatable.",
+      });
+      yargs.option("ignore-identical", {
+        demandOption: false,
+        type: "boolean",
+        default: false,
+        describe:
+          "Do not report components whose definitions are all identical (only divergent redefinitions conflict).",
+      });
+    },
     require("./commands/check-conflicts")
   )
   .command(

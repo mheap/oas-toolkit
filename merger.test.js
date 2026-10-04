@@ -1,4 +1,5 @@
 const {
+  findComponentCollisions,
   ensureNoComponentColissions,
   ensureNoPathColissions,
   ensureNoTagColissions,
@@ -196,6 +197,183 @@ describe("#ensureNoComponentColissions", () => {
       )
     );
   });
+
+  it("reports every collision, not just the first", () => {
+    let message;
+    try {
+      ensureNoComponentColissions([
+        {
+          info: { title: "One" },
+          components: {
+            schemas: { Alpha: { type: "object" }, Beta: { type: "object" } },
+          },
+        },
+        {
+          info: { title: "Two" },
+          components: {
+            schemas: { Alpha: { type: "string" }, Beta: { type: "string" } },
+          },
+        },
+      ]);
+    } catch (e) {
+      message = e.message;
+    }
+
+    expect(message).toContain("components.schemas.Alpha");
+    expect(message).toContain("components.schemas.Beta");
+  });
+
+  it("does not throw for identical definitions when ignoreIdentical is set", () => {
+    expect(
+      ensureNoComponentColissions(
+        [
+          { info: { title: "One" }, components: { schemas: { Shared: { type: "object" } } } },
+          { info: { title: "Two" }, components: { schemas: { Shared: { type: "object" } } } },
+        ],
+        { ignoreIdentical: true }
+      )
+    ).toBe(undefined);
+  });
+
+  it("still throws for divergent definitions when ignoreIdentical is set", () => {
+    expect(() => {
+      ensureNoComponentColissions(
+        [
+          { info: { title: "One" }, components: { schemas: { Shared: { type: "object" } } } },
+          { info: { title: "Two" }, components: { schemas: { Shared: { type: "string" } } } },
+        ],
+        { ignoreIdentical: true }
+      );
+    }).toThrow(
+      new Error(
+        "Duplicate component detected: components.schemas.Shared (One, Two)"
+      )
+    );
+  });
+});
+
+describe("#findComponentCollisions", () => {
+  it("returns an empty array when there are no collisions", () => {
+    expect(
+      findComponentCollisions([
+        { info: { title: "One" }, components: { schemas: { FooSchema } } },
+        { info: { title: "Two" }, components: { schemas: { BarSchema } } },
+      ])
+    ).toEqual([]);
+  });
+
+  it("reports a collision with its sources and differing content", () => {
+    const collisions = findComponentCollisions([
+      {
+        info: { title: "One" },
+        components: { schemas: { FooSchema: { type: "string" } } },
+      },
+      {
+        info: { title: "Two" },
+        components: { schemas: { FooSchema: { type: "boolean" } } },
+      },
+    ]);
+
+    expect(collisions).toHaveLength(1);
+    expect(collisions[0].type).toBe("schemas");
+    expect(collisions[0].name).toBe("FooSchema");
+    expect(collisions[0].entries.map((e) => e.title).sort()).toEqual([
+      "One",
+      "Two",
+    ]);
+  });
+
+  it("treats key-order-equivalent content as identical", () => {
+    const objects = [
+      {
+        info: { title: "One" },
+        components: {
+          schemas: {
+            FooSchema: { type: "object", properties: { a: { type: "string" } } },
+          },
+        },
+      },
+      {
+        info: { title: "Two" },
+        components: {
+          schemas: {
+            FooSchema: {
+              properties: { a: { type: "string" } },
+              type: "object",
+            },
+          },
+        },
+      },
+    ];
+
+    expect(findComponentCollisions(objects)).toHaveLength(1);
+    expect(findComponentCollisions(objects, { ignoreIdentical: true })).toEqual([]);
+  });
+
+  it("does not group names that differ only by case by default", () => {
+    expect(
+      findComponentCollisions([
+        { info: { title: "One" }, components: { schemas: { FooSchema } } },
+        { info: { title: "Two" }, components: { schemas: { fooSchema: BarSchema } } },
+      ])
+    ).toEqual([]);
+  });
+
+  it("drops identical collisions when ignoreIdentical is set", () => {
+    const objects = [
+      { info: { title: "One" }, components: { schemas: { Shared: { type: "object" } } } },
+      { info: { title: "Two" }, components: { schemas: { Shared: { type: "object" } } } },
+    ];
+
+    expect(findComponentCollisions(objects)).toHaveLength(1);
+    expect(findComponentCollisions(objects, { ignoreIdentical: true })).toEqual([]);
+  });
+
+  it("keeps divergent collisions when ignoreIdentical is set", () => {
+    const collisions = findComponentCollisions(
+      [
+        { info: { title: "One" }, components: { schemas: { Shared: { type: "object" } } } },
+        { info: { title: "Two" }, components: { schemas: { Shared: { type: "string" } } } },
+      ],
+      { ignoreIdentical: true }
+    );
+
+    expect(collisions).toHaveLength(1);
+    expect(collisions[0].name).toBe("Shared");
+  });
+
+  it("skips component paths matching ignorePrefix", () => {
+    expect(
+      findComponentCollisions(
+        [
+          { info: { title: "One" }, components: { securitySchemes: { Auth: { type: "http" } } } },
+          { info: { title: "Two" }, components: { securitySchemes: { Auth: { type: "apiKey" } } } },
+        ],
+        { ignorePrefix: ["components.securitySchemes"] }
+      )
+    ).toEqual([]);
+  });
+
+  it("sees collisions that only exist once $refs are bundled in", () => {
+    // Bundled docs inline a shared $ref into every service; pass the bundled docs so
+    // those collisions are caught before the merge collapses them.
+    const collisions = findComponentCollisions(
+      [
+        {
+          info: { title: "api-builder" },
+          components: { parameters: { PortalId: { in: "path", name: "portalId" } } },
+        },
+        {
+          info: { title: "portal-management" },
+          components: { parameters: { PortalId: { in: "path", name: "portal_id" } } },
+        },
+      ],
+      { ignoreIdentical: true }
+    );
+
+    expect(collisions).toHaveLength(1);
+    expect(collisions[0].type).toBe("parameters");
+  });
 });
 
 describe("#ensureNoComplexObjectCollisions", () => {
@@ -363,7 +541,7 @@ describe("path collisions", () => {
     ).toBe(undefined);
   });
 
-  it.only("does not throw with overlapping paths and different servers", () => {
+  it("does not throw with overlapping paths and different servers", () => {
     expect(
       ensureNoPathColissions([
         { info: { title: "One" }, servers: [{ url: "https://example.com/v1" }], paths: { "/foo": { get: {} } } },
