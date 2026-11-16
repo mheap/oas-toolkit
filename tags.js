@@ -7,7 +7,7 @@
  * 3. In-place filtering instead of clone + filter
  */
 
-function removeUnusedTags(oas) {
+function removeUnusedTags(oas, { mutate = false } = {}) {
   if (!oas.tags || oas.tags.length === 0) {
     return oas;
   }
@@ -21,8 +21,10 @@ function removeUnusedTags(oas) {
     return oas;
   }
 
-  // Clone and filter
-  const result = JSON.parse(JSON.stringify(oas));
+  // Callers that own this document can opt into mutation and avoid a full
+  // JSON clone when only the top-level tags array changes. The default stays
+  // non-mutating for API compatibility.
+  const result = mutate ? oas : JSON.parse(JSON.stringify(oas));
   result.tags = result.tags.filter(t => usedSet.has(t.name));
   return result;
 }
