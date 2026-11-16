@@ -4,22 +4,23 @@ const traverse = require("traverse");
  * Optimized implementation of removeUnusedComponents.
  * 
  * Key optimizations:
- * 1. Single-pass reference collection instead of multiple traverse calls
- * 2. Graph-based reachability analysis instead of recursive removal with isEqual checks
- * 3. In-place deletion instead of clone + traverse + remove
- * 4. Uses Set for O(1) lookups instead of Array.includes
+ * 1. Reachability-first component traversal skips unreachable component bodies
+ * 2. Iterative graph analysis avoids recursive removal and repeated equality checks
+ * 3. In-place deletion avoids cloning when callers own the document
+ * 4. Uses Sets for constant-time reachability lookups
  */
-function removeUnusedComponents(oas) {
+function removeUnusedComponents(oas, { mutate = false } = {}) {
   if (!oas.components) {
     return oas;
   }
 
-  // Step 1: Collect all defined components (single iteration over components keys)
-  const defined = new Set();
+  // Step 1: Index component values so reachable references can be followed
+  // without first walking every component body.
+  const defined = new Map();
   for (const [category, items] of Object.entries(oas.components)) {
     if (items && typeof items === "object") {
       for (const name of Object.keys(items)) {
-        defined.add(`components.${category}.${name}`);
+        defined.set(`components.${category}.${name}`, { category, name, value: items[name] });
       }
     }
   }
@@ -28,92 +29,66 @@ function removeUnusedComponents(oas) {
     return oas;
   }
 
-  // Step 2: Build reference graph - single traversal of entire document
-  // We need to know: for each component, what other components does it reference?
-  // And what components are referenced from paths (the roots)?
+  // Step 2: Find references outside components. These are the roots of the
+  // component graph; component bodies are scanned lazily only when reached.
   const referencedFromPaths = new Set();
-  const componentRefs = new Map(); // Map<componentPath, Set<referencedComponentPaths>>
+  const collectRefs = (startNode, refs, skipRootComponents = false) => {
+    const stack = [{ node: startNode, root: true }];
+    while (stack.length > 0) {
+      const { node, root } = stack.pop();
+      if (!node || typeof node !== "object") continue;
 
-  // Initialize componentRefs for all defined components
-  for (const comp of defined) {
-    componentRefs.set(comp, new Set());
-  }
-
-  // Single traversal to collect all references
-  traverse(oas).forEach(function () {
-    if (!this.node || typeof this.node !== "object") return;
-
-    // Collect $ref
-    if (this.node["$ref"] && typeof this.node["$ref"] === "string") {
-      const refPath = this.node["$ref"].replace("#/", "").replace(/\//g, ".");
-      
-      // Determine if this ref is inside a component or in paths/elsewhere
-      const containingComponent = getContainingComponent(this.path);
-      
-      if (containingComponent) {
-        // This ref is inside a component - add to component's references
-        const refs = componentRefs.get(containingComponent);
-        if (refs) {
-          refs.add(refPath);
-        }
-      } else {
-        // This ref is in paths or elsewhere - it's a root reference
-        referencedFromPaths.add(refPath);
-      }
-    }
-
-    // Collect security scheme references from operations
-    if (this.node["operationId"] && this.node["security"]) {
-      for (const item of this.node["security"]) {
-        for (const key of Object.keys(item)) {
-          const secPath = `components.securitySchemes.${key}`;
-          const containingComponent = getContainingComponent(this.path);
-          if (containingComponent) {
-            const refs = componentRefs.get(containingComponent);
-            if (refs) refs.add(secPath);
-          } else {
-            referencedFromPaths.add(secPath);
-          }
+      if (node["$ref"] && typeof node["$ref"] === "string") {
+        const ref = node["$ref"];
+        if (ref.startsWith("#/components/")) {
+          refs.add(ref.slice(2).replace(/\//g, "."));
         }
       }
-    }
-  });
 
-  // Add global security schemes as roots
+      if (node["operationId"] && node["security"]) {
+        for (const item of node["security"]) {
+          for (const key of Object.keys(item)) refs.add(`components.securitySchemes.${key}`);
+        }
+      }
+
+      for (const key of Object.keys(node)) {
+        if (root && skipRootComponents && key === "components") continue;
+        const child = node[key];
+        if (child && typeof child === "object") stack.push({ node: child, root: false });
+      }
+    }
+  };
+
+  collectRefs(oas, referencedFromPaths, true);
+
+  // Add global security schemes as roots.
   if (oas.security) {
     for (const item of oas.security) {
-      for (const key of Object.keys(item)) {
-        referencedFromPaths.add(`components.securitySchemes.${key}`);
-      }
+      for (const key of Object.keys(item)) referencedFromPaths.add(`components.securitySchemes.${key}`);
     }
   }
 
-  // Step 3: Compute reachable components using BFS from roots
+  // Step 3: Compute reachability, walking each component body only after it is
+  // reached. Large orphaned component trees are never traversed.
   const reachable = new Set();
   const queue = [...referencedFromPaths];
-  
-  while (queue.length > 0) {
-    const current = queue.shift();
-    
+  for (let queueIndex = 0; queueIndex < queue.length; queueIndex++) {
+    const current = queue[queueIndex];
     if (reachable.has(current)) continue;
-    if (!defined.has(current)) continue; // Not a defined component
-    
+    const component = defined.get(current);
+    if (!component) continue;
     reachable.add(current);
-    
-    // Add all components referenced by this component to the queue
-    const refs = componentRefs.get(current);
-    if (refs) {
-      for (const ref of refs) {
-        if (!reachable.has(ref)) {
-          queue.push(ref);
-        }
-      }
+
+    const refs = new Set();
+    collectRefs(component.value, refs);
+    for (const ref of refs) {
+      if (!reachable.has(ref)) queue.push(ref);
     }
   }
 
   // Step 4: Compute unused components
   const unused = new Set();
-  for (const comp of defined) {
+  for (const comp of defined.keys()) {
     if (!reachable.has(comp)) {
       unused.add(comp);
     }
@@ -123,24 +98,22 @@ function removeUnusedComponents(oas) {
     return oas;
   }
 
-  // Step 5: Remove unused components in-place
-  // Clone first to avoid modifying original (use traverse.clone to preserve object structure)
-  const result = traverse(oas).clone();
+  // Step 5: Remove unused components. Callers that own this document can opt
+  // into mutation and avoid cloning the entire OAS tree just to delete entries
+  // from components. The default remains non-mutating for API compatibility.
+  const result = mutate ? oas : traverse(oas).clone();
   
+  const unusedByCategory = new Map();
   for (const compPath of unused) {
-    const parts = compPath.split(".");
-    // parts = ["components", category, name]
-    const category = parts[1];
-    const name = parts[2];
-    
-    if (result.components[category] && result.components[category][name]) {
-      delete result.components[category][name];
-      
-      // Remove empty category
-      if (Object.keys(result.components[category]).length === 0) {
-        delete result.components[category];
-      }
-    }
+    const { category, name } = defined.get(compPath);
+    if (!unusedByCategory.has(category)) unusedByCategory.set(category, []);
+    unusedByCategory.get(category).push(name);
+  }
+  for (const [category, names] of unusedByCategory) {
+    const items = result.components[category];
+    if (!items) continue;
+    for (const name of names) delete items[name];
+    if (Object.keys(items).length === 0) delete result.components[category];
   }
 
   return result;
